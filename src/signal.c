@@ -19,6 +19,12 @@ void mysig(int sigid) {
             usleep(500000);
             Save_Exit();
             break;
+        case SIGALRM:
+            // TODO
+            break;
+        case SIGPIPE:
+            // TODO
+            break;
     }
 }
 
