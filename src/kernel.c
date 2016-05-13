@@ -11,10 +11,12 @@
 /* #include <EmbGW.h> */
 
 void GTWY_Work() {
+    // TODO
     while (1) {
 
     }
 }
 void Save_Exit() {
+    // TODO
     exit(0);
 }
