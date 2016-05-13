@@ -1,0 +1,22 @@
+#! /bin/sh
+
+unset CONF_PATH
+
+while getopts :c:r opt; do
+    case "$opt" in
+        c) file=$PWD/../$OPTARG
+           if [ -e $file ]; then
+                export CONF_PATH=$file
+           else
+                echo "Error: file "$file" does not exist." >&2
+                exit
+           fi;;
+        r) run=1;;
+    esac
+done
+
+if [ -z $CONF_PATH ]; then
+    echo "Undefined CONF_PATH"
+elif [ $run -eq 1 ]; then
+    ./t_config
+fi
