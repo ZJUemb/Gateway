@@ -20,6 +20,6 @@ done
 if [ -z $CONF_PATH ]; then
     echo "Undefined CONF_PATH"
 elif [ $run -eq 1 ]; then
-    ./server &
+    ./gateway
 fi
 

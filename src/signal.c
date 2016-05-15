@@ -10,20 +10,25 @@
 #include <unistd.h>
 #include <signal.h>
 
-void mysig(int sigid) {
+void Signal_Handler(int sigid) {
     switch (sigid) {
         case SIGINT:
         case SIGTERM:
         case SIGQUIT:
             printf("\nThe system is going down to maintenance mode NOW!\n");
-            usleep(500000);
             Save_Exit();
             break;
         case SIGALRM:
             // TODO
+            // poll
+            alarm(10);
+            /* printf("10 second triggered.\n"); */
             break;
         case SIGPIPE:
             // TODO
+            break;
+        case SIGIO:
+            /* wait_flag = 0; */
             break;
     }
 }
