@@ -19,28 +19,30 @@ void Load_Conf() {
 
     config_init(&cfg);
     /* Read the configuration file. If not exists, exit */
+    printf("Open file '%s'...", path);
     if (!config_read_file(&cfg, path)) {
         fprintf(stderr, "Error: %s:%d - %s\n", config_error_file(&cfg),
                 config_error_line(&cfg), config_error_text(&cfg));
         config_destroy(&cfg);
         exit(1);
     }
-    printf("Open file '%s' --- DONE\n", path);
+    printf("DONE\n");
 
+    printf("Load configuration...");
     /* gateway */
     {
         int id;
         const char *salt;
 
         if (config_lookup_int(&cfg, "gateway.id", &id))
-            gateway_id = (unsigned int)id;
+            myGateway.id = (unsigned int)id;
         else {
             fprintf(stderr, "Error: Gateway ID is missing in your config file. You may add `\"id = xxx\"` in #GATEWAY field.\n");
             exit(1);
         }
 
         if (config_lookup_string(&cfg, "gateway.auth.salt", &salt))
-            strncpy(md5_salt, salt, sizeof(md5_salt));
+            strncpy(myGateway.md5_salt, salt, sizeof(myGateway.md5_salt));
         else {
             fprintf(stderr, "Error: Salt for md5 hash is missing in your config file. You may add `salt = \"something\"` in #GATEWAY field.\n");
             exit(1);
@@ -64,10 +66,10 @@ void Load_Conf() {
             printf("Warning: More than %d servers are provided, while only the first %d will be used.\n", MAXSERVERNUM, MAXSERVERNUM);
             count = MAXSERVERNUM;
         }
-        for (i = 0; i < count; ++i) {
-            config_setting_t *server = config_setting_get_elem(upload, i);
+        for (i = 0; i < count; i++) {
             const char *name, *addr, *type;
             int port;
+            config_setting_t *server = config_setting_get_elem(upload, i);
 
             if (!(config_setting_lookup_string(server, "name", &name)
                 && config_setting_lookup_int(server, "port", &port)
@@ -76,17 +78,18 @@ void Load_Conf() {
                 fprintf(stderr, "Error: Cannot resolve the %dth item in #UPLOAD field. Please review the config file.\n", i);
                 exit(1);
             }
-            strncpy(server_name[server_num], name, sizeof(server_name[i-1]));
-            strncpy(server_addr[server_num], addr, sizeof(server_addr[i-1]));
-            server_port[server_num] = (unsigned int)port;
+            strncpy(server_set[i].name, name, sizeof(server_set[i].name));
+            strncpy(server_set[i].ipv4_addr, addr, sizeof(server_set[i].ipv4_addr));
+            server_set[i].port = port;
             if (strcmp(type, "BIN") == 0)
-                server_type[server_num] = BIN;
+                server_set[i].type = BIN;
             else if(strcmp(type, "HTTP") == 0)
-                server_type[server_num] = HTTP;
+                server_set[i].type = HTTP;
             else {
                 fprintf(stderr, "Error: Cannot resolve 'type = %s' in the %dth item of #UPLOAD field.\n", type, i);
                 exit(1);
             }
+            server_set[i].isOK = TRUE;
             server_num++;
         }
     }
@@ -98,9 +101,9 @@ void Load_Conf() {
             printf("Warning: More than %d sensors are provided, while only the first %d will be used.\n", MAXSENSORNUM, MAXSENSORNUM);
             count = MAXSENSORNUM;
         }
-        for (i = 0; i < count; ++i) {
-            config_setting_t *sensor = config_setting_get_elem(download, i);
+        for (i = 0; i < count; i++) {
             const char *name, *device, *type;
+            config_setting_t *sensor = config_setting_get_elem(download, i);
 
             if (!(config_setting_lookup_string(sensor, "name", &name)
                 && config_setting_lookup_string(sensor, "device", &device)
@@ -108,12 +111,12 @@ void Load_Conf() {
                 fprintf(stderr, "Error: Cannot resolve the %dth item in #DOWNLOAD field. Please review the config file.\n", i);
                 exit(1);
             }
-            strncpy(sensor_name[sensor_num], name, sizeof(sensor_name[i-1]));
-            strncpy(sensor_dev[sensor_num], device, sizeof(sensor_dev[i-1]));
+            strncpy(sensor_set[i].name, name, sizeof(sensor_set[i].name));
+            strncpy(sensor_set[i].file_path, device, sizeof(sensor_set[i].file_path));
             if (strcmp(type, "BT") == 0)
-                sensor_type[sensor_num] = BT;
+                sensor_set[i].type = BT;
             else if(strcmp(type, "R430") == 0)
-                sensor_type[sensor_num] = R430;
+                sensor_set[i].type = R430;
             else {
                 fprintf(stderr, "Error: Cannot resolve 'type = %s' in the %dth item of #DOWNLOAD field.\n", type, i);
                 exit(1);
@@ -127,14 +130,14 @@ void Load_Conf() {
         const char *location;
         if (!config_lookup_string(&cfg, "gateway.log.location", &location)) {
             printf("Warning: No log file location specified. Default path: '%s/log/'\n", pwd);
-            sprintf(log_location, "%s/log/", pwd);
+            sprintf(myGateway.log_location, "%s/log/", pwd);
         }
         else {
-            sprintf(log_location, location, strlen(location));
+            sprintf(myGateway.log_location, location, strlen(location));
         }
     }
 
-    printf("Load configuration --- DONE\n");
+    printf("...DONE\n");
 }
 /* int main(int argc, char *argv[]) */
 /* { */
