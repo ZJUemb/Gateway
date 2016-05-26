@@ -90,7 +90,7 @@ void Load_Conf() {
                 exit(1);
             }
             server_set[i].isOK = TRUE;
-            server_num++;
+            myGateway.server_num++;
         }
     }
     // DOWNLOAD
@@ -121,7 +121,7 @@ void Load_Conf() {
                 fprintf(stderr, "Error: Cannot resolve 'type = %s' in the %dth item of #DOWNLOAD field.\n", type, i);
                 exit(1);
             }
-            sensor_num++;
+            myGateway.sensor_num++;
         }
     }
 

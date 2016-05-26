@@ -15,29 +15,45 @@
 /*
  * Macros
  */
-#define MAXSERVERNUM 4
-#define MAXSENSORNUM 4
-#define MAXTHREADNUM 8
+#define MAXSERVERNUM        4
+#define MAXSENSORNUM        4
+#define MAXFILEDESCRIPTOR   512
+#define MAXTHREADNUM        8
 
-#define BT          1
-#define R430        2
-#define BIN         3
-#define HTTP        4
+#define BT                  0x0801
+#define R430                0x0802
+#define BIN                 0x0401
+#define HTTP                0x0402
 
-#define TRUE    1;
-#define FALSE   0;
+#define SENSOR              0x1001
+#define SERVER              0x1002
+
+typedef unsigned char bool;
+#define TRUE                1
+#define FALSE               0
 
 /*
  * struct
  */
-typedef unsigned char bool;
+typedef struct Dictionary {
+    int type;
+    void *owner;
+} Dict;
+
 typedef struct Gateway {
     int id;
     char name[16];
     char log_location[64];
     char md5_salt[32];
+    int server_num;
+    int sensor_num;
 
     char auth_key[33];
+    Dict dict[MAXFILEDESCRIPTOR];
+    int maxfd;
+    int access_fd, error_fd;
+    fd_set allfd;
+    threadpool thpool;
 } Gateway;
 
 typedef struct Server {
@@ -50,6 +66,7 @@ typedef struct Server {
 
     int sockfd;
     struct sockaddr_in sock_addr;
+    pthread_mutex_t lock;
 } Server;
 
 typedef struct Sensor {
@@ -60,7 +77,10 @@ typedef struct Sensor {
     int type;
 
     int fd;
+    pthread_mutex_t lock;
+    struct termios oldtio, newtio;
 } Sensor;
+
 
 /*
  * function
@@ -98,48 +118,5 @@ ssize_t Written(int fd, const void *buff, size_t nbytes);
 Gateway myGateway;
 Server server_set[MAXSERVERNUM];
 Sensor sensor_set[MAXSENSORNUM];
-
-unsigned int gateway_id;
-char md5_salt[32];
-
-unsigned int server_num; char server_name[MAXSERVERNUM][16];
-char server_addr[MAXSERVERNUM][64]; // ip address or domain name of web server
-unsigned int server_port[MAXSERVERNUM]; // port
-unsigned int server_type[MAXSERVERNUM]; // BIN or HTTP
-
-unsigned int sensor_num;
-char sensor_name[MAXSENSORNUM][16];
-char sensor_dev[MAXSENSORNUM][32]; // path of serial devices
-unsigned int sensor_type[MAXSENSORNUM]; // BlueTooth or Radio430
-
-char log_location[128];
-
-/*
- * Initialization
- */
-// authorization
-char auth_key[33];
-
-// upload
-struct sockaddr_in sock_addr[MAXSERVERNUM];
-
-// download
-int sensor_fd[MAXSENSORNUM];
-int maxfd;
-struct termios oldtio, newtio;
-
-// log
-int access_log, error_log;
-
-// thread pool
-threadpool thpool;
-
-// mutex lock
-pthread_mutex_t IO_ready;
-
-/*
- * Kernel
- */
-unsigned char wait_flag;
 
 #endif

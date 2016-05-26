@@ -17,8 +17,15 @@
 
 #define BAUDRATE B9600
 
+void init4init() {
+    myGateway.maxfd = 0;
+    FD_ZERO(&myGateway.allfd);
+}
+
 void GTWY_Init() {
     printf("INIT:\n");
+    init4init(); // initialization for GTWY_Init
+
     /* authorization */
     {
         printf("  Generate authorization key...");
@@ -53,7 +60,7 @@ void GTWY_Init() {
         unsigned int i;
         int sock;
 
-        for (i = 0; i < server_num; i++) {
+        for (i = 0; i < myGateway.server_num; i++) {
             bzero(&server_set[i].sock_addr, sizeof(server_set[i].sock_addr));
             server_set[i].sock_addr.sin_family = AF_INET;
             server_set[i].sock_addr.sin_port = htons(server_set[i].port);
@@ -62,11 +69,19 @@ void GTWY_Init() {
                 exit(1);
             }
             sock = Socket(AF_INET, SOCK_STREAM, 0);
-            if (connect(sock, (struct sockaddr *)&sock_addr[i], sizeof(sock_addr[i])) < 0) {
-                fprintf(stderr, "Error: Cannot connect to remote server '%s'.\n", server_addr[i]);
+            if (connect(sock, (struct sockaddr *)&server_set[i].sock_addr, sizeof(server_set[i].sock_addr)) < 0) {
+                fprintf(stderr, "Error: Cannot connect to remote server '%s'.\n", server_set[i].ipv4_addr);
                 exit(1);
             }
-            Close(sock);
+            if (server_set[i].type == BIN) {
+                server_set[i].sockfd = sock;
+                myGateway.dict[sock].type = SERVER;
+                myGateway.dict[sock].owner = &server_set[i];
+                if (server_set[i].sockfd > myGateway.maxfd)
+                    myGateway.maxfd = server_set[i].sockfd;
+            }
+            else
+                Close(sock);
         }
         printf("DONE\n");
     }
@@ -77,22 +92,27 @@ void GTWY_Init() {
         // TODO
         char buf[64];
         sensor_set[0].fd = open(sensor_set[0].file_path, O_RDWR | O_NOCTTY | O_NONBLOCK);
-        if (sensor_fd[0] < 0) {
+        if (sensor_set[0].fd < 0) {
             sprintf(buf, "Error: Cannot open device '%s'.", sensor_set[0].file_path);
             perror(buf);
             exit(1);
         }
-        fcntl(sensor_fd[0], F_SETOWN, getpid());
-        fcntl(sensor_fd[0], F_SETFL, FASYNC);
-        tcgetattr(sensor_fd[0], &oldtio);
-        newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-        newtio.c_iflag = IGNPAR;// | ICRNL; Uncomment this flag to stop Linux replacing '\r' by '\n'
-	    newtio.c_oflag = 0;
-	    newtio.c_lflag = 0;//ICANON; receive one byte
-        newtio.c_cc[VMIN] = 1;
-        newtio.c_cc[VTIME] = 0;
+        if (sensor_set[0].fd > myGateway.maxfd)
+            myGateway.maxfd = sensor_set[0].fd;
+        myGateway.dict[sensor_set[0].fd].type = SENSOR;
+        myGateway.dict[sensor_set[0].fd].owner = &sensor_set[0];
+
+        fcntl(sensor_set[0].fd, F_SETOWN, getpid());
+        fcntl(sensor_set[0].fd, F_SETFL, FASYNC);
+        tcgetattr(sensor_set[0].fd, &sensor_set[0].oldtio);
+        sensor_set[0].newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+        sensor_set[0].newtio.c_iflag = IGNPAR;// | ICRNL; Uncomment this flag to stop Linux replacing '\r' by '\n'
+	    sensor_set[0].newtio.c_oflag = 0;
+	    sensor_set[0].newtio.c_lflag = 0;//ICANON; receive one byte
+        sensor_set[0].newtio.c_cc[VMIN] = 1;
+        sensor_set[0].newtio.c_cc[VTIME] = 0;
         tcflush(sensor_set[0].fd, TCIFLUSH);
-        tcsetattr(sensor_set[0].fd, TCSANOW, &newtio);
+        tcsetattr(sensor_set[0].fd, TCSANOW, &sensor_set[0].newtio);
         printf("DONE\n");
     }
 
@@ -103,17 +123,17 @@ void GTWY_Init() {
         char path[128];
         // error log
         sprintf(path, "%s/%s", myGateway.log_location, log1);
-        error_log = open(path, O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP);
-        if (error_log < 0) {
+        myGateway.error_fd = open(path, O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP);
+        if (myGateway.error_fd < 0) {
             char buf[64];
             sprintf(buf, "Error: Cannot open log file '%s'.", path);
             perror(buf);
             exit(1);
         }
         // access log
-        sprintf(path, "%s/%s", log_location, log2);
-        access_log = open(path, O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP);
-        if (access_log < 0) {
+        sprintf(path, "%s/%s", myGateway.log_location, log2);
+        myGateway.access_fd = open(path, O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP);
+        if (myGateway.access_fd < 0) {
             char buf[64];
             sprintf(buf, "Error: Cannot open log file '%s'.", path);
             perror(buf);
@@ -135,9 +155,13 @@ void GTWY_Init() {
 
     /* thread pool */
     {
+        int i;
         printf("  Start thread pool and mutex lock...");
-        thpool = thpool_init(MAXTHREADNUM);
-        pthread_mutex_init(&IO_ready);
+        myGateway.thpool = thpool_init(MAXTHREADNUM);
+        for (i = 0; i < myGateway.server_num; i++)
+            pthread_mutex_init(server_set[i].lock);
+        for (i = 0; i < myGateway.sensor_num; i++)
+            pthread_mutex_init(sensor_set[i].lock);
         printf("DONE\n");
     }
 
