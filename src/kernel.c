@@ -158,7 +158,7 @@ void GTWY_Work() {
     /* Report_Data((void *)data); */
     while (1) {
         char data[256];
-        fd_set read_set = sensor_set;
+        fd_set read_set;// = sensor_set;
         select(maxfd+1, &read_set, NULL, NULL, NULL);
         int sel_fd;
         for (sel_fd = 0; sel_fd <= maxfd; sel_fd++) {

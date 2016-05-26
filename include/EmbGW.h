@@ -24,6 +24,44 @@
 #define BIN         3
 #define HTTP        4
 
+#define TRUE    1;
+#define FALSE   0;
+
+/*
+ * struct
+ */
+typedef unsigned char bool;
+typedef struct Gateway {
+    int id;
+    char name[16];
+    char log_location[64];
+    char md5_salt[32];
+
+    char auth_key[33];
+} Gateway;
+
+typedef struct Server {
+    bool isOK;
+
+    char name[16];
+    char ipv4_addr[64];
+    int port;
+    int type;
+
+    int sockfd;
+    struct sockaddr_in sock_addr;
+} Server;
+
+typedef struct Sensor {
+    bool isOK;
+
+    char name[16];
+    char file_path[64];
+    int type;
+
+    int fd;
+} Sensor;
+
 /*
  * function
  */
@@ -55,8 +93,12 @@ ssize_t Written(int fd, const void *buff, size_t nbytes);
 
 
 /*
- * Configuration
+ * Configuration and Initialization
  */
+Gateway myGateway;
+Server server_set[MAXSERVERNUM];
+Sensor sensor_set[MAXSENSORNUM];
+
 unsigned int gateway_id;
 char md5_salt[32];
 
@@ -84,8 +126,7 @@ struct sockaddr_in sock_addr[MAXSERVERNUM];
 // download
 int sensor_fd[MAXSENSORNUM];
 int maxfd;
-fd_set sensor_set;
-struct termios oldtio,newtio;
+struct termios oldtio, newtio;
 
 // log
 int access_log, error_log;
