@@ -75,10 +75,17 @@ void GTWY_Init() {
             }
             if (server_set[i].type == BIN) {
                 server_set[i].sockfd = sock;
-                myGateway.dict[sock].type = SERVER;
-                myGateway.dict[sock].owner = &server_set[i];
                 if (server_set[i].sockfd > myGateway.maxfd)
                     myGateway.maxfd = server_set[i].sockfd;
+                // update lookup table
+                fdLookup[sock].type = SERVER;
+                fdLookup[sock].file_path = NULL;
+                pthread_mutex_init(fdLookup[sock].lock);
+                fdLookup[sock].peer = (Peer *)malloc(sizeof(Peer));
+                fdLookup[sock].peer->name = server_set[i].name;
+                fdLookup[sock].peer->prot = server_set[i].type;
+                fdLookup[sock].peer->handler = ServerBIN_Handler;
+                fdLookup[sock].peer->next = NULL;
             }
             else
                 Close(sock);
@@ -91,16 +98,27 @@ void GTWY_Init() {
         printf("  Open specified device files...");
         // TODO
         char buf[64];
-        sensor_set[0].fd = open(sensor_set[0].file_path, O_RDWR | O_NOCTTY | O_NONBLOCK);
-        if (sensor_set[0].fd < 0) {
+        int fd = open(sensor_set[0].file_path, O_RDWR | O_NOCTTY | O_NONBLOCK);
+        if (fd < 0) {
             sprintf(buf, "Error: Cannot open device '%s'.", sensor_set[0].file_path);
             perror(buf);
             exit(1);
         }
+        sensor_set[0].fd = fd;
         if (sensor_set[0].fd > myGateway.maxfd)
             myGateway.maxfd = sensor_set[0].fd;
-        myGateway.dict[sensor_set[0].fd].type = SENSOR;
-        myGateway.dict[sensor_set[0].fd].owner = &sensor_set[0];
+        // update lookup table
+        fdLookup[fd].type = SENSOR;
+        fdLookup[fd].file_path = sensor_set[0].file_path;
+        pthread_mutex_init(fdLookup[fd].lock);
+        fdLookup[fd].peer = (Peer *)malloc(sizeof(Peer));
+        fdLookup[fd].peer->name = sensor_set[0].name;
+        fdLookup[fd].peer->prot = sensor_set[0].type;
+        if (strcmp(sensor_set[0].name, "870") == 0)
+            fdLookup[fd].peer->handler = Sensor870_Handler;
+        else if (strcmp(sensor_set[0].name, "883") == 0)
+            fdLookup[fd].peer->handler = Sensor883_Handler;
+        fdLookup[fd].peer->next = NULL;
 
         fcntl(sensor_set[0].fd, F_SETOWN, getpid());
         fcntl(sensor_set[0].fd, F_SETFL, FASYNC);
@@ -156,12 +174,8 @@ void GTWY_Init() {
     /* thread pool */
     {
         int i;
-        printf("  Start thread pool and mutex lock...");
+        printf("  Start thread pool...");
         myGateway.thpool = thpool_init(MAXTHREADNUM);
-        for (i = 0; i < myGateway.server_num; i++)
-            pthread_mutex_init(server_set[i].lock);
-        for (i = 0; i < myGateway.sensor_num; i++)
-            pthread_mutex_init(sensor_set[i].lock);
         printf("DONE\n");
     }
 

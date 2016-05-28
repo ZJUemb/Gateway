@@ -10,16 +10,12 @@
 #include <string.h>
 /* #include <arpa/inet.h> */
 
-void HTTP_Send(int id, char *data) {
+void HTTP_Send(int serv_fd, const char *host, char *data) {
     char buf[1023];
     char buf_temp[64];
-    int serv_fd;
     {
-        serv_fd = Socket(AF_INET, SOCK_STREAM, 0);
-        Connect(serv_fd, (const struct sockaddr *)(&sock_addr[id]), sizeof(sock_addr[id]));
-
         sprintf(buf, "POST /api/report HTTP/1.1\r\n");
-        sprintf(buf_temp, "Host: %s\r\n", server_addr[id]);
+        sprintf(buf_temp, "Host: %s\r\n", host);
         strcat(buf, buf_temp);
         sprintf(buf_temp, "User-Agent: EmberGTWY/1.0\r\n");
         strcat(buf, buf_temp);

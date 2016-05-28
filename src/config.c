@@ -102,10 +102,11 @@ void Load_Conf() {
             count = MAXSENSORNUM;
         }
         for (i = 0; i < count; i++) {
-            const char *name, *device, *type;
+            const char *name, *group, *device, *type;
             config_setting_t *sensor = config_setting_get_elem(download, i);
 
             if (!(config_setting_lookup_string(sensor, "name", &name)
+                && config_setting_lookup_string(sensor, "group", &group)
                 && config_setting_lookup_string(sensor, "device", &device)
                 && config_setting_lookup_string(sensor, "type", &type))) {
                 fprintf(stderr, "Error: Cannot resolve the %dth item in #DOWNLOAD field. Please review the config file.\n", i);

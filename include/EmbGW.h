@@ -17,7 +17,7 @@
  */
 #define MAXSERVERNUM        4
 #define MAXSENSORNUM        4
-#define MAXFILEDESCRIPTOR   512
+#define MAXFILEDESCRIPTOR   64
 #define MAXTHREADNUM        8
 
 #define BT                  0x0801
@@ -35,10 +35,22 @@ typedef unsigned char bool;
 /*
  * struct
  */
-typedef struct Dictionary {
+typedef void (*Handler)(void *);
+
+struct Peer;
+typedef struct Peer {
+    const char *name;
+    int prot;
+    Handler handler;
+    struct Peer *next;
+} Peer;
+
+typedef struct fdLUT {
     int type;
-    void *owner;
-} Dict;
+    const char *file_path;
+    pthread_mutex_t lock;
+    Peer *peer;
+} fdLUT;
 
 typedef struct Gateway {
     int id;
@@ -49,7 +61,6 @@ typedef struct Gateway {
     int sensor_num;
 
     char auth_key[33];
-    Dict dict[MAXFILEDESCRIPTOR];
     int maxfd;
     int access_fd, error_fd;
     fd_set allfd;
@@ -66,7 +77,6 @@ typedef struct Server {
 
     int sockfd;
     struct sockaddr_in sock_addr;
-    pthread_mutex_t lock;
 } Server;
 
 typedef struct Sensor {
@@ -77,7 +87,6 @@ typedef struct Sensor {
     int type;
 
     int fd;
-    pthread_mutex_t lock;
     struct termios oldtio, newtio;
 } Sensor;
 
@@ -85,9 +94,13 @@ typedef struct Sensor {
 /*
  * function
  */
+void Sensor870_Handler(void *);
+void Sensor883_Handler(void *);
+void ServerBIN_Handler(void *);
+
 void Signal_Handler(int sigid);
 void BIN_Send(int id, char *data);
-void HTTP_Send(int id, char *data);
+void HTTP_Send(int serv_fd, const char *host, char *data);
 void Save_Exit();
 // Library
 int Socket(int family, int type, int protocol);
@@ -118,5 +131,7 @@ ssize_t Written(int fd, const void *buff, size_t nbytes);
 Gateway myGateway;
 Server server_set[MAXSERVERNUM];
 Sensor sensor_set[MAXSENSORNUM];
+fdLUT fdLookup[MAXFILEDESCRIPTOR];
+
 
 #endif
