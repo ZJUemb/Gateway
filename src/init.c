@@ -50,6 +50,7 @@ void GTWY_Init() {
         for (i = 0; i < 16; i++) {
             sprintf(myGateway.auth_key+i*2, "%02x", hash[i]);
         }
+        myGateway.auth_key[33] = 0;
         printf("DONE\n");
     }
 
@@ -80,11 +81,12 @@ void GTWY_Init() {
                 // update lookup table
                 fdLookup[sock].type = SERVER;
                 fdLookup[sock].file_path = NULL;
-                pthread_mutex_init(fdLookup[sock].lock);
+                pthread_mutex_init(&fdLookup[sock].lock);
                 fdLookup[sock].peer = (Peer *)malloc(sizeof(Peer));
                 fdLookup[sock].peer->name = server_set[i].name;
                 fdLookup[sock].peer->prot = server_set[i].type;
-                fdLookup[sock].peer->handler = ServerBIN_Handler;
+                fdLookup[sock].peer->owner = &server_set[i];
+                /* fdLookup[sock].peer->handler = ServerBIN_Handler; */
                 fdLookup[sock].peer->next = NULL;
             }
             else
@@ -114,10 +116,11 @@ void GTWY_Init() {
         fdLookup[fd].peer = (Peer *)malloc(sizeof(Peer));
         fdLookup[fd].peer->name = sensor_set[0].name;
         fdLookup[fd].peer->prot = sensor_set[0].type;
-        if (strcmp(sensor_set[0].name, "870") == 0)
-            fdLookup[fd].peer->handler = Sensor870_Handler;
-        else if (strcmp(sensor_set[0].name, "883") == 0)
-            fdLookup[fd].peer->handler = Sensor883_Handler;
+        fdLookup[fd].peer->owner = &sensor_set[0];
+        /* if (strcmp(sensor_set[0].name, "870") == 0) */
+            /* fdLookup[fd].peer->handler = Sensor870_Handler; */
+        /* else if (strcmp(sensor_set[0].name, "883") == 0) */
+            /* fdLookup[fd].peer->handler = Sensor883_Handler; */
         fdLookup[fd].peer->next = NULL;
 
         fcntl(sensor_set[0].fd, F_SETOWN, getpid());

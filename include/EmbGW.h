@@ -39,15 +39,15 @@ typedef void (*Handler)(void *);
 
 struct Peer;
 typedef struct Peer {
-    const char *name;
+    char *name;
     int prot;
-    Handler handler;
+    void *owner;
     struct Peer *next;
 } Peer;
 
 typedef struct fdLUT {
     int type;
-    const char *file_path;
+    char *file_path;
     pthread_mutex_t lock;
     Peer *peer;
 } fdLUT;
@@ -94,9 +94,6 @@ typedef struct Sensor {
 /*
  * function
  */
-void Sensor870_Handler(void *);
-void Sensor883_Handler(void *);
-void ServerBIN_Handler(void *);
 
 void Signal_Handler(int sigid);
 void BIN_Send(int id, char *data);
