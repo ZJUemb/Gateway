@@ -95,11 +95,8 @@ char *Sensor870_Handler(fdLUT *lut, int fd, char *buf) {
                 cJSON_AddTrueToObject(payload, "LESState");
         }
         char *buf_tmp = cJSON_Print(root);
-        if (strlen(buf_tmp) < sizeof(buf))
-            strncpy(buf, buf_tmp, sizeof(buf_tmp));
-        else
-            // TODO Error
-            ;
+        strcpy(buf, buf_tmp);
+        // TODO Error
     }
     return buf;
 }
@@ -193,10 +190,12 @@ void *Server_Handler(void *arg) {
 }
 
 void *Sensor_Handler(void *arg) {
+    printf("Sensor Data Coming...\n");
     fdLUT *lut = (fdLUT *)arg;
-    int fd = (lut - fdLookup) / (sizeof(fdLUT));
+    int fd = lut - &fdLookup[0];
 
     int cnt = 0, device_id;
+    int i;
     char type;
     char buf[512];
     while (cnt < 9)
@@ -219,6 +218,11 @@ void *Sensor_Handler(void *arg) {
                 while (cnt < 14) // package length = 14
                     cnt += read(fd, buf+cnt, 14 - cnt);
                 Sensor870_Handler(lut, fd, buf);
+		for (i = 0; i < myGateway.server_num; i++) {
+		    if (server_set[i].type == BIN)
+			HTTP_Send(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
+		    else if (server_set[i].type == HTTP); // TODO
+		}
                 break;
         }
     }
@@ -234,6 +238,11 @@ void *Sensor_Handler(void *arg) {
                 while (cnt < 18) // package length = 18
                     cnt += read(fd, buf+cnt, 18 - cnt);
                 Sensor883_Handler(lut, fd, buf);
+		for (i = 0; i < myGateway.server_num; i++) {
+		    if (server_set[i].type == BIN)
+			HTTP_Send(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
+		    else if (server_set[i].type == HTTP); // TODO
+		}
                 break;
         }
     }
@@ -241,6 +250,7 @@ void *Sensor_Handler(void *arg) {
         // TODO
         // Error
     }
+    pthread_mutex_unlock(&lut->lock);
 }
 
 bool isLocked(int fd) {
@@ -255,7 +265,7 @@ bool isLocked(int fd) {
 void GTWY_Work() {
     // TODO
     // select --> Select
-    alarm(10); // timed task
+    //alarm(10); // timed task
     while (1) {
         int sel_fd;
         fd_set read_set = myGateway.allfd;
@@ -272,7 +282,8 @@ void GTWY_Work() {
             if (fdLookup[sel_fd].type == SERVER)
                 thpool_add_work(myGateway.thpool, Server_Handler, (void *)&fdLookup[sel_fd]);
             else if (fdLookup[sel_fd].type == SENSOR)
-                thpool_add_work(myGateway.thpool, Sensor_Handler, (void *)&fdLookup[sel_fd]);
+//                thpool_add_work(myGateway.thpool, Sensor_Handler, (void *)&fdLookup[sel_fd]);
+		  Sensor_Handler(&fdLookup[sel_fd]);
         }
     }
 }

@@ -17,14 +17,11 @@
 
 #define BAUDRATE B9600
 
-void init4init() {
-    myGateway.maxfd = 0;
-    FD_ZERO(&myGateway.allfd);
-}
 
 void GTWY_Init() {
     printf("INIT:\n");
-    init4init(); // initialization for GTWY_Init
+    myGateway.maxfd = 0;
+    FD_ZERO(&myGateway.allfd);
 
     /* authorization */
     {
@@ -76,12 +73,13 @@ void GTWY_Init() {
             }
             if (server_set[i].type == BIN) {
                 server_set[i].sockfd = sock;
+                FD_SET(server_set[i].sockfd, &myGateway.allfd);
                 if (server_set[i].sockfd > myGateway.maxfd)
                     myGateway.maxfd = server_set[i].sockfd;
                 // update lookup table
                 fdLookup[sock].type = SERVER;
                 fdLookup[sock].file_path = NULL;
-                pthread_mutex_init(&fdLookup[sock].lock);
+                pthread_mutex_init(&fdLookup[sock].lock, NULL);
                 fdLookup[sock].peer = (Peer *)malloc(sizeof(Peer));
                 fdLookup[sock].peer->name = server_set[i].name;
                 fdLookup[sock].peer->prot = server_set[i].type;
@@ -107,12 +105,13 @@ void GTWY_Init() {
             exit(1);
         }
         sensor_set[0].fd = fd;
+        FD_SET(sensor_set[0].fd, &myGateway.allfd);
         if (sensor_set[0].fd > myGateway.maxfd)
             myGateway.maxfd = sensor_set[0].fd;
         // update lookup table
         fdLookup[fd].type = SENSOR;
         fdLookup[fd].file_path = sensor_set[0].file_path;
-        pthread_mutex_init(fdLookup[fd].lock);
+        pthread_mutex_init(&fdLookup[fd].lock, NULL);
         fdLookup[fd].peer = (Peer *)malloc(sizeof(Peer));
         fdLookup[fd].peer->name = sensor_set[0].name;
         fdLookup[fd].peer->prot = sensor_set[0].type;
@@ -169,7 +168,7 @@ void GTWY_Init() {
         signal(SIGINT, Signal_Handler);
         signal(SIGTERM, Signal_Handler);
         signal(SIGQUIT, Signal_Handler);
-        signal(SIGALRM, Signal_Handler);
+ //       signal(SIGALRM, Signal_Handler);
         signal(SIGIO, Signal_Handler);
         printf("DONE\n");
     }

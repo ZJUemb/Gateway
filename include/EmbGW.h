@@ -97,7 +97,7 @@ typedef struct Sensor {
 
 void Signal_Handler(int sigid);
 void BIN_Send(int id, char *data);
-void HTTP_Send(int serv_fd, const char *host, char *data);
+void HTTP_Send(struct sockaddr_in sock_addr, const char *host, char *data);
 void Save_Exit();
 // Library
 int Socket(int family, int type, int protocol);

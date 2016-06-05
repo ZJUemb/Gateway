@@ -51,7 +51,8 @@ int Select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,\
         struct timeval *timeout) {
     int sockfd = select(maxfdp1, readset, writeset, exceptset, timeout);
     if (sockfd == -1)
-        err_quit("select()");
+       // err_quit("select()");
+	perror("Select:");
     return sockfd;
 }
 
