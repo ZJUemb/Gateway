@@ -98,7 +98,7 @@ void GTWY_Init() {
         printf("  Open specified device files...");
         // TODO
         char buf[64];
-        int fd = open(sensor_set[0].file_path, O_RDWR | O_NOCTTY | O_NONBLOCK);
+        int fd = open(sensor_set[0].file_path, O_RDWR | O_NOCTTY);
         if (fd < 0) {
             sprintf(buf, "Error: Cannot open device '%s'.", sensor_set[0].file_path);
             perror(buf);
@@ -122,8 +122,6 @@ void GTWY_Init() {
             /* fdLookup[fd].peer->handler = Sensor883_Handler; */
         fdLookup[fd].peer->next = NULL;
 
-        fcntl(sensor_set[0].fd, F_SETOWN, getpid());
-        fcntl(sensor_set[0].fd, F_SETFL, FASYNC);
         tcgetattr(sensor_set[0].fd, &sensor_set[0].oldtio);
         sensor_set[0].newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
         sensor_set[0].newtio.c_iflag = IGNPAR;// | ICRNL; Uncomment this flag to stop Linux replacing '\r' by '\n'
@@ -169,7 +167,7 @@ void GTWY_Init() {
         signal(SIGTERM, Signal_Handler);
         signal(SIGQUIT, Signal_Handler);
  //       signal(SIGALRM, Signal_Handler);
-        signal(SIGIO, Signal_Handler);
+ //       signal(SIGIO, Signal_Handler);
         printf("DONE\n");
     }
 

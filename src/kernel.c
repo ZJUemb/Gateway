@@ -128,7 +128,7 @@ char *Sensor883_Handler(fdLUT *lut, int fd, char *buf) {
     // decode
     {
         int i;
-        for (i = 0; i < 14; i++)
+        for (i = 0; i < 18; i++)
             printf("%02x ", *((char *)buf + i));
         printf("\n");
         device_id = *((int *)buf);
@@ -168,24 +168,47 @@ char *Sensor883_Handler(fdLUT *lut, int fd, char *buf) {
             cJSON_AddNumberToObject(payload, "value", value);
         }
         char *buf_tmp = cJSON_Print(root);
-        if (strlen(buf_tmp) < sizeof(buf))
-            strncpy(buf, buf_tmp, sizeof(buf_tmp));
-        else
-            // TODO Error
-            ;
+        strncpy(buf, buf_tmp, strlen(buf_tmp));
     }
     return buf;
 }
-void ServerBIN_Handler(void *peer) {
+void ServerBIN_Handler(Server *server) {
+    char buf[255];
+    bzero(buf, 255);
+    Read(server->sockfd, buf, sizeof(buf));  
+    printf("Server: %s\n", buf); 
+    if (strcmp(buf, "on\n") == 0) {
+        *(int *)buf = 0x883;
+        *((int *)buf + 1) = 12;
+        *((char *)buf + 8) = 0x01;
+        *((char *)buf + 9) = 0x1;
+        *((int *)((char *)buf + 10)) = 0x12345678;
+    }
+    else if (strcmp(buf, "off\n") == 0) {
+        *(int *)buf = 0x883;
+        *((int *)buf + 1) = 12;
+        *((char *)buf + 8) = 0x01;
+        *((char *)buf + 9) = 0x0;
+        *((int *)((char *)buf + 10)) = 0x12345678;
+    }
+    Written(sensor_set[0].fd, buf, 14);
+}
+void ServerHTTP_Handler(Server *server) {
 }
 
 void *Server_Handler(void *arg) {
     fdLUT *lut = (fdLUT *)arg;
     int sockfd = (lut - fdLookup) / (sizeof(fdLUT));
     Server *server = (Server *)(lut->peer->owner);
-    /*
-     * TODO
-     */
+    char buf[512];
+
+    if (server->type == HTTP) {
+	
+	
+    }
+    else { // BIN
+	ServerBIN_Handler(server);
+    }
     pthread_mutex_unlock(&lut->lock);
 }
 
@@ -219,9 +242,9 @@ void *Sensor_Handler(void *arg) {
                     cnt += read(fd, buf+cnt, 14 - cnt);
                 Sensor870_Handler(lut, fd, buf);
 		for (i = 0; i < myGateway.server_num; i++) {
-		    if (server_set[i].type == BIN)
+		    if (server_set[i].type == HTTP)
 			HTTP_Send(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
-		    else if (server_set[i].type == HTTP); // TODO
+		    else if (server_set[i].type == BIN); // TODO
 		}
                 break;
         }
@@ -239,9 +262,9 @@ void *Sensor_Handler(void *arg) {
                     cnt += read(fd, buf+cnt, 18 - cnt);
                 Sensor883_Handler(lut, fd, buf);
 		for (i = 0; i < myGateway.server_num; i++) {
-		    if (server_set[i].type == BIN)
+		    if (server_set[i].type == HTTP)
 			HTTP_Send(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
-		    else if (server_set[i].type == HTTP); // TODO
+		    else if (server_set[i].type == BIN); // TODO
 		}
                 break;
         }
@@ -280,7 +303,8 @@ void GTWY_Work() {
             // ok now
             pthread_mutex_lock(&fdLookup[sel_fd].lock);
             if (fdLookup[sel_fd].type == SERVER)
-                thpool_add_work(myGateway.thpool, Server_Handler, (void *)&fdLookup[sel_fd]);
+//                thpool_add_work(myGateway.thpool, Server_Handler, (void *)&fdLookup[sel_fd]);
+		Server_Handler(&fdLookup[sel_fd]);
             else if (fdLookup[sel_fd].type == SENSOR)
 //                thpool_add_work(myGateway.thpool, Sensor_Handler, (void *)&fdLookup[sel_fd]);
 		  Sensor_Handler(&fdLookup[sel_fd]);
