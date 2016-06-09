@@ -95,6 +95,7 @@ char *Sensor870_Handler(fdLUT *lut, int fd, char *buf) {
                 cJSON_AddTrueToObject(payload, "LESState");
         }
         char *buf_tmp = cJSON_Print(root);
+	bzero(buf, 512);
         strcpy(buf, buf_tmp);
         // TODO Error
     }
@@ -178,14 +179,14 @@ void ServerBIN_Handler(Server *server) {
     Read(server->sockfd, buf, sizeof(buf));  
     printf("Server: %s\n", buf); 
     if (strcmp(buf, "on\n") == 0) {
-        *(int *)buf = 0x883;
+        *(int *)buf = 883;
         *((int *)buf + 1) = 12;
         *((char *)buf + 8) = 0x01;
         *((char *)buf + 9) = 0x1;
         *((int *)((char *)buf + 10)) = 0x12345678;
     }
     else if (strcmp(buf, "off\n") == 0) {
-        *(int *)buf = 0x883;
+        *(int *)buf = 883;
         *((int *)buf + 1) = 12;
         *((char *)buf + 8) = 0x01;
         *((char *)buf + 9) = 0x0;
@@ -249,9 +250,16 @@ void *Sensor_Handler(void *arg) {
                 break;
         }
     }
-    else if (device_id == 0x883) {
+    else if (device_id == 883) { // TODO
         switch (type) {
             case 0x00: // ACK or NAK
+		while (cnt < 14) {
+		    cnt+= read(fd, buf+cnt, 14 - cnt);
+		} 
+		int i = 0;
+		for (; i < 14; i++)
+		    printf("%02x ", buf[i]);
+		printf("\n");
                 break;
             case 0x01:
                 // TODO
@@ -261,11 +269,11 @@ void *Sensor_Handler(void *arg) {
                 while (cnt < 18) // package length = 18
                     cnt += read(fd, buf+cnt, 18 - cnt);
                 Sensor883_Handler(lut, fd, buf);
-		for (i = 0; i < myGateway.server_num; i++) {
+/*		for (i = 0; i < myGateway.server_num; i++) {
 		    if (server_set[i].type == HTTP)
 			HTTP_Send(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
 		    else if (server_set[i].type == BIN); // TODO
-		}
+		}*/
                 break;
         }
     }

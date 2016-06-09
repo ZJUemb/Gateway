@@ -28,6 +28,8 @@
 #define SENSOR              0x1001
 #define SERVER              0x1002
 
+#define SENSOR1		    883
+
 typedef unsigned char bool;
 #define TRUE                1
 #define FALSE               0
