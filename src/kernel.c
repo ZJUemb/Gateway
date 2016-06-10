@@ -55,29 +55,27 @@ char *Sensor870_Handler(fdLUT *lut, int fd, char *buf) {
         timestamp = *((int *)((char *)buf + 10));
     }
 
+    char flag = 1;
     // check package correctness
     {
         // check whether is old package
         int old = ((Sensor *)lut->peer->owner)->old_seq;
         if (old != -1 || old != seq_number + 1)
-            return NULL;
-
-        // check timestamp
-        int now = getTime();
-        if (now > timestamp + 100 || now < timestamp - 100)
-            return NULL;
-
-        // check data
-        if (data & 0xF0 != 0)
-            return NULL;
+            flag = 0;
+        else if (data & 0xF0 != 0)
+            flag = 0;
+        else{
+            int now = getTime();    
+            if (now > timestamp + 100 || now < timestamp - 100)
+                flag = 0;
+        }
     }
-
 
     // reply
     {
         char reply_buf[32];
         int ack_number = seq_number + 1;
-        char reply_type = 0x00, reply_data = 0x01; // data: 0x01 for ACk, 0x00 for NAK
+        char reply_type = 0x00, reply_data = flag; // data: 0x01 for ACk, 0x00 for NAK
 
         *(int *)reply_buf = device_id;
         *((int *)reply_buf + 1) = ack_number;
@@ -88,6 +86,9 @@ char *Sensor870_Handler(fdLUT *lut, int fd, char *buf) {
         Written(fd, reply_buf, 14);
         pthread_mutex_unlock(&lut->lock);
     }
+
+    if (flag == 0)
+        return NULL;
 
     // pack into JSON
     {
@@ -162,28 +163,27 @@ char *Sensor883_Handler(fdLUT *lut, int fd, char *buf) {
         timestamp = *((int *)((char *)buf + 14));
     }
 
+    char flag = 1;
     // check package correctness
     {
         // check whether is old package
         int old = ((Sensor *)lut->peer->owner)->old_seq;
         if (old != -1 || old != seq_number + 1)
-            return NULL;
-
-        // check timestamp
-        int now = getTime();
-        if (now > timestamp + 100 || now < timestamp - 100)
-            return NULL;
-
-        // check data
-        if (data & 0xF0 != 0)
-            return NULL;
+            flag = 0;
+        else if (data & 0xF0 != 0)
+            flag = 0;
+        else{
+            int now = getTime();    
+            if (now > timestamp + 100 || now < timestamp - 100)
+                flag = 0;
+        }
     }
 
     // reply
     {
         char reply_buf[32];
         int ack_number = seq_number + 1;
-        char reply_type = 0x00, reply_data = 0x01; // data: 0x01 for ACk, 0x00 for NAK
+        char reply_type = 0x00, reply_data = flag; // data: 0x01 for ACk, 0x00 for NAK
 
         *(int *)reply_buf = device_id;
         *((int *)reply_buf + 1) = ack_number;
@@ -194,6 +194,9 @@ char *Sensor883_Handler(fdLUT *lut, int fd, char *buf) {
         Written(fd, reply_buf, 14);
         pthread_mutex_unlock(&lut->lock);
     }
+
+    if (flag == 0)
+        return NULL;
 
     // pack into JSON
     {
