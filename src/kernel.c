@@ -14,6 +14,10 @@
 #include <cJSON.h>
 #include "EmbGW.h"
 
+#include <time.h>
+static unsigned int getTime(){
+    return (unsigned int)time(NULL);
+}
 
 char *Sensor870_Handler(fdLUT *lut, int fd, char *buf) {
     /*
@@ -50,6 +54,25 @@ char *Sensor870_Handler(fdLUT *lut, int fd, char *buf) {
         data = *((char *)buf + 9);
         timestamp = *((int *)((char *)buf + 10));
     }
+
+    // check package correctness
+    {
+        // check whether is old package
+        int old = ((Sensor *)lut->peer->owner)->old_seq;
+        if (old != -1 || old != seq_number + 1)
+            return NULL;
+
+        // check timestamp
+        int now = getTime();
+        if (now > timestamp + 100 || now < timestamp - 100)
+            return NULL;
+
+        // check data
+        if (data & 0xF0 != 0)
+            return NULL;
+    }
+
+
     // reply
     {
         char reply_buf[32];
@@ -138,6 +161,24 @@ char *Sensor883_Handler(fdLUT *lut, int fd, char *buf) {
         value = *((int *)((char *)buf + 10));
         timestamp = *((int *)((char *)buf + 14));
     }
+
+    // check package correctness
+    {
+        // check whether is old package
+        int old = ((Sensor *)lut->peer->owner)->old_seq;
+        if (old != -1 || old != seq_number + 1)
+            return NULL;
+
+        // check timestamp
+        int now = getTime();
+        if (now > timestamp + 100 || now < timestamp - 100)
+            return NULL;
+
+        // check data
+        if (data & 0xF0 != 0)
+            return NULL;
+    }
+
     // reply
     {
         char reply_buf[32];

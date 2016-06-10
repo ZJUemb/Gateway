@@ -89,6 +89,7 @@ typedef struct Sensor {
     int type;
 
     int fd;
+    int old_seq;
     struct termios oldtio, newtio;
 } Sensor;
 
