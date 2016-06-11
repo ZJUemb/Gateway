@@ -17,6 +17,27 @@
 
 #define BAUDRATE B9600
 
+void genAuthKey(int id, const char *salt, char auth_key[32]) {
+    int i;
+    MD5_CTX ctx;
+    char id_str[16], buf[64];
+    BYTE hash[16];
+    sprintf(id_str, "%d", id);
+
+    md5_init(&ctx);
+    md5_update(&ctx, (BYTE *)id_str, strlen(id_str));
+    md5_final(&ctx, hash);
+    for (i = 0; i < 16; i++) {
+        sprintf(buf+i*2, "%02x", hash[i]);
+    }
+    strcat(buf, salt);
+    md5_init(&ctx);
+    md5_update(&ctx, (BYTE *)buf, strlen(buf));
+    md5_final(&ctx, (BYTE *)hash);
+    for (i = 0; i < 16; i++) {
+        sprintf(auth_key+i*2, "%02x", hash[i]);
+    }
+}
 
 void GTWY_Init() {
     printf("INIT:\n");
@@ -25,29 +46,12 @@ void GTWY_Init() {
 
     /* authorization */
     {
-        printf("  Generate authorization key...");
-
-        char id_str[16], buf[64];
-        BYTE hash[16];
         int i;
-        sprintf(id_str, "%d", myGateway.id);
-
-        MD5_CTX ctx;
-        md5_init(&ctx);
-        md5_update(&ctx, (BYTE *)id_str, strlen(id_str));
-        md5_final(&ctx, hash);
-        for (i = 0; i < 16; i++) {
-            sprintf(buf+i*2, "%02x", hash[i]);
+        printf("  Generate authorization key...");
+        genAuthKey(myGateway.id, myGateway.md5_salt, myGateway.auth_key);
+        for (i = 0; i < myGateway.sensor_num; i++) {
+            genAuthKey(sensor_set[i].id, myGateway.md5_salt, sensor_set[i].auth_key);
         }
-        strcat(buf, myGateway.md5_salt);
-
-        md5_init(&ctx);
-        md5_update(&ctx, (BYTE *)buf, strlen(buf));
-        md5_final(&ctx, (BYTE *)hash);
-        for (i = 0; i < 16; i++) {
-            sprintf(myGateway.auth_key+i*2, "%02x", hash[i]);
-        }
-        myGateway.auth_key[33] = 0;
         printf("DONE\n");
     }
 
@@ -56,14 +60,14 @@ void GTWY_Init() {
     {
         printf("  Connect to specified servers...");
         unsigned int i;
-        int sock;
+        int sock, j;
 
         for (i = 0; i < myGateway.server_num; i++) {
             bzero(&server_set[i].sock_addr, sizeof(server_set[i].sock_addr));
             server_set[i].sock_addr.sin_family = AF_INET;
             server_set[i].sock_addr.sin_port = htons(server_set[i].port);
             if (inet_pton(AF_INET, server_set[i].ipv4_addr, &(server_set[i].sock_addr.sin_addr)) != 1) {
-                fprintf(stderr, "Error: Illegal ip address '%s' for server '%s'.\n", server_set[i].ipv4_addr, server_set[i].name);
+                fprintf(stderr, "Error: Illegal ip address '%s' for server '%d'.\n", server_set[i].ipv4_addr, server_set[i].id);
                 exit(1);
             }
             sock = Socket(AF_INET, SOCK_STREAM, 0);
@@ -72,6 +76,18 @@ void GTWY_Init() {
                 exit(1);
             }
             if (server_set[i].type == BIN) {
+                if (binLogin(sock, myGateway.id, myGateway.auth_key) < 0) {
+                    fprintf(stderr, "Error: Gateway login failed.\n");
+                    exit(1);
+                }
+                else {
+                    for (j = 0; j < myGateway.sensor_num; j++) {
+                        if (binLogin(sock, sensor_set[j].id, sensor_set[j].auth_key) < 0) {
+                            fprintf(stderr, "Error: Sensor %d login failed.\n", sensor_set[j].id);
+                            exit(1);
+                        }
+                    }
+                }
                 server_set[i].sockfd = sock;
                 FD_SET(server_set[i].sockfd, &myGateway.allfd);
                 if (server_set[i].sockfd > myGateway.maxfd)
@@ -81,7 +97,7 @@ void GTWY_Init() {
                 fdLookup[sock].file_path = NULL;
                 pthread_mutex_init(&fdLookup[sock].lock, NULL);
                 fdLookup[sock].peer = (Peer *)malloc(sizeof(Peer));
-                fdLookup[sock].peer->name = server_set[i].name;
+                fdLookup[sock].peer->id = server_set[i].id;
                 fdLookup[sock].peer->prot = server_set[i].type;
                 fdLookup[sock].peer->owner = &server_set[i];
                 /* fdLookup[sock].peer->handler = ServerBIN_Handler; */
@@ -113,13 +129,9 @@ void GTWY_Init() {
         fdLookup[fd].file_path = sensor_set[0].file_path;
         pthread_mutex_init(&fdLookup[fd].lock, NULL);
         fdLookup[fd].peer = (Peer *)malloc(sizeof(Peer));
-        fdLookup[fd].peer->name = sensor_set[0].name;
+        fdLookup[fd].peer->id = sensor_set[0].id;
         fdLookup[fd].peer->prot = sensor_set[0].type;
         fdLookup[fd].peer->owner = &sensor_set[0];
-        /* if (strcmp(sensor_set[0].name, "870") == 0) */
-            /* fdLookup[fd].peer->handler = Sensor870_Handler; */
-        /* else if (strcmp(sensor_set[0].name, "883") == 0) */
-            /* fdLookup[fd].peer->handler = Sensor883_Handler; */
         fdLookup[fd].peer->next = NULL;
 
         tcgetattr(sensor_set[0].fd, &sensor_set[0].oldtio);
@@ -166,8 +178,8 @@ void GTWY_Init() {
         signal(SIGINT, Signal_Handler);
         signal(SIGTERM, Signal_Handler);
         signal(SIGQUIT, Signal_Handler);
- //       signal(SIGALRM, Signal_Handler);
- //       signal(SIGIO, Signal_Handler);
+        signal(SIGALRM, Signal_Handler);
+        signal(SIGPIPE, Signal_Handler);
         printf("DONE\n");
     }
 

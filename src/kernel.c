@@ -10,6 +10,7 @@
 #include "string.h"
 #include "sys/syscall.h"
 #include <pthread.h>
+#include <unistd.h>
 #include <asm/errno.h>
 #include <cJSON.h>
 #include "EmbGW.h"
@@ -173,11 +174,17 @@ char *Sensor883_Handler(fdLUT *lut, int fd, char *buf) {
     }
     return buf;
 }
-void ServerBIN_Handler(Server *server) {
+int ServerBIN_Handler(Server *server) {
     char buf[255];
     bzero(buf, 255);
-    Read(server->sockfd, buf, sizeof(buf));  
-    printf("Server: %s\n", buf); 
+    if (Read(server->sockfd, buf, sizeof(buf)) == 0) { // server is down
+        server->isOK = FALSE;
+        close(server->sockfd);
+        printf("\033[1;31;40mServer '%d'-%s:%d is down\n\033[0m",
+                server->id, server->ipv4_addr, server->port);
+        return -1;
+    }
+    printf("Server: %s\n", buf);
     if (strcmp(buf, "on\n") == 0) {
         *(int *)buf = 883;
         *((int *)buf + 1) = 12;
@@ -199,38 +206,42 @@ void ServerHTTP_Handler(Server *server) {
 
 void *Server_Handler(void *arg) {
     fdLUT *lut = (fdLUT *)arg;
+    pthread_mutex_lock(&lut->lock);
     int sockfd = (lut - fdLookup) / (sizeof(fdLUT));
     Server *server = (Server *)(lut->peer->owner);
     char buf[512];
 
     if (server->type == HTTP) {
-	
-	
+
+
     }
     else { // BIN
-	ServerBIN_Handler(server);
+	    ServerBIN_Handler(server);
     }
     pthread_mutex_unlock(&lut->lock);
 }
 
 void *Sensor_Handler(void *arg) {
-    printf("Sensor Data Coming...\n");
     fdLUT *lut = (fdLUT *)arg;
+    pthread_mutex_lock(&lut->lock);
+    printf("Sensor Data Coming...Thread %ld handles it.\n", syscall(SYS_gettid));
     int fd = lut - &fdLookup[0];
 
-    int cnt = 0, device_id;
-    int i;
+    int cnt = 0, device_id, i;
     char type;
     char buf[512];
-    while (cnt < 9)
-        cnt += read(fd, buf+cnt, 9 - cnt);
+    /* while (cnt < 9) */
+        /* cnt += read(fd, buf+cnt, 9 - cnt); */
+    cnt += read(fd, buf+cnt, 9);
+    if (cnt < 9) // Uncomplete package
+            return; // log TODO
     /*
      * Package Identification
      */
     device_id = *(int *)buf;
     type = *((char *)buf + 8);
     // TODO add device_id in configuration
-    if (device_id == 0x870) {
+    if (device_id == 870) {
         switch (type) {
             case 0x00: // ACK or NAK
                 break;
@@ -239,14 +250,19 @@ void *Sensor_Handler(void *arg) {
                 // Error: Gateway to Sensor
                 break;
             case 0x02: // data
-                while (cnt < 14) // package length = 14
-                    cnt += read(fd, buf+cnt, 14 - cnt);
-                Sensor870_Handler(lut, fd, buf);
-		for (i = 0; i < myGateway.server_num; i++) {
-		    if (server_set[i].type == HTTP)
-			HTTP_Send(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
-		    else if (server_set[i].type == BIN); // TODO
-		}
+                /* while (cnt < 14) // package length = 14 */
+                    /* cnt += read(fd, buf+cnt, 14 - cnt); */
+                cnt += read(fd, buf+cnt, 14-cnt);
+                if (cnt < 14) // Uncomplete package
+                    return; // log TODO
+                if (Sensor870_Handler(lut, fd, buf) == NULL)
+                    return; // log TODO
+        		for (i = 0; i < myGateway.server_num; i++) {
+        		    if (server_set[i].type == HTTP)
+        			    HTTP_Send(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
+        		    else if (server_set[i].type == BIN);
+                        /* BIN_Report(server_set[i].sockfd, device_id, buf); */
+        		}
                 break;
         }
     }
@@ -255,7 +271,7 @@ void *Sensor_Handler(void *arg) {
             case 0x00: // ACK or NAK
 		while (cnt < 14) {
 		    cnt+= read(fd, buf+cnt, 14 - cnt);
-		} 
+		}
 		int i = 0;
 		for (; i < 14; i++)
 		    printf("%02x ", buf[i]);
@@ -266,14 +282,19 @@ void *Sensor_Handler(void *arg) {
                 // Error: Gateway to Sensor
                 break;
             case 0x02: // data
-                while (cnt < 18) // package length = 18
-                    cnt += read(fd, buf+cnt, 18 - cnt);
-                Sensor883_Handler(lut, fd, buf);
-/*		for (i = 0; i < myGateway.server_num; i++) {
-		    if (server_set[i].type == HTTP)
-			HTTP_Send(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
-		    else if (server_set[i].type == BIN); // TODO
-		}*/
+                /* while (cnt < 18) // package length = 18 */
+                    /* cnt += read(fd, buf+cnt, 18 - cnt); */
+                cnt += read(fd, buf+cnt, 18-cnt);
+                if (cnt < 18) // Uncomplete package
+                    return; // log TODO
+                if (Sensor883_Handler(lut, fd, buf) == NULL)
+                    return; // log TODO
+                for (i = 0; i < myGateway.server_num; i++) {
+                    if (server_set[i].type == HTTP)
+                        HTTP_Send(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
+                    else if (server_set[i].type == BIN);
+                        /* BIN_Send(server_set[i].sockfd, buf); */
+                }
                 break;
         }
     }
@@ -309,13 +330,11 @@ void GTWY_Work() {
             if (isLocked(sel_fd))
                 continue;
             // ok now
-            pthread_mutex_lock(&fdLookup[sel_fd].lock);
             if (fdLookup[sel_fd].type == SERVER)
 //                thpool_add_work(myGateway.thpool, Server_Handler, (void *)&fdLookup[sel_fd]);
 		Server_Handler(&fdLookup[sel_fd]);
             else if (fdLookup[sel_fd].type == SENSOR)
-//                thpool_add_work(myGateway.thpool, Sensor_Handler, (void *)&fdLookup[sel_fd]);
-		  Sensor_Handler(&fdLookup[sel_fd]);
+                thpool_add_work(myGateway.thpool, Sensor_Handler, (void *)&fdLookup[sel_fd]);
         }
     }
 }

@@ -23,26 +23,11 @@ void HTTP_Send(struct sockaddr_in sock_addr, const char *host, char *data) {
         strcat(buf, buf_temp);
         sprintf(buf_temp, "Content-Type: application/x-www-form-urlencoded\r\n");
         strcat(buf, buf_temp);
-/*        {
-            char data_str[128];
-            int prev = 0, curr = 0;
-            while (1) {
-                while (data[curr] != '\n' && data[curr] != 0)
-                    curr++;
-                strncpy(data_str, data+prev, curr-prev);
-                data_str[curr-prev] = 0;
-                sprintf(buf_temp, "%s\r\n", data_str);
-                strcat(buf_data, buf_temp);
-                if (data[curr] == 0)
-                    break;
-                prev = ++curr;
-            }
-        }*/
-	sprintf(buf_temp, "Content-Length: %d\r\n", strlen(data));
-	strcat(buf, buf_temp);
+	    sprintf(buf_temp, "Content-Length: %d\r\n", (int)strlen(data));
+	    strcat(buf, buf_temp);
         sprintf(buf_temp, "\r\n");
         strcat(buf, buf_temp);
-	strcat(buf, data);
+	    strcat(buf, data);
         Written(serv_fd, buf, strlen(buf));
     }
 

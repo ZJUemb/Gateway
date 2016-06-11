@@ -67,18 +67,18 @@ void Load_Conf() {
             count = MAXSERVERNUM;
         }
         for (i = 0; i < count; i++) {
-            const char *name, *addr, *type;
-            int port;
+            const char *addr, *type;
+            int port, id;
             config_setting_t *server = config_setting_get_elem(upload, i);
 
-            if (!(config_setting_lookup_string(server, "name", &name)
+            if (!(config_setting_lookup_int(server, "id", &id)
                 && config_setting_lookup_int(server, "port", &port)
                 && config_setting_lookup_string(server, "addr", &addr)
                 && config_setting_lookup_string(server, "type", &type))) {
                 fprintf(stderr, "Error: Cannot resolve the %dth item in #UPLOAD field. Please review the config file.\n", i);
                 exit(1);
             }
-            strncpy(server_set[i].name, name, sizeof(server_set[i].name));
+            server_set[i].id = id;
             strncpy(server_set[i].ipv4_addr, addr, sizeof(server_set[i].ipv4_addr));
             server_set[i].port = port;
             if (strcmp(type, "BIN") == 0)
@@ -102,16 +102,17 @@ void Load_Conf() {
             count = MAXSENSORNUM;
         }
         for (i = 0; i < count; i++) {
-            const char *name, *group, *device, *type;
+            int id;
+            const char *group, *device, *type;
             config_setting_t *sensor = config_setting_get_elem(download, i);
 
-            if (!(config_setting_lookup_string(sensor, "name", &name)
+            if (!(config_setting_lookup_int(sensor, "id", &id)
                 && config_setting_lookup_string(sensor, "device", &device)
                 && config_setting_lookup_string(sensor, "type", &type))) {
                 fprintf(stderr, "Error: Cannot resolve the %dth item in #DOWNLOAD field. Please review the config file.\n", i);
                 exit(1);
             }
-            strncpy(sensor_set[i].name, name, sizeof(sensor_set[i].name));
+            sensor_set[i].id = id;
             strncpy(sensor_set[i].file_path, device, sizeof(sensor_set[i].file_path));
             if (strcmp(type, "BT") == 0)
                 sensor_set[i].type = BT;

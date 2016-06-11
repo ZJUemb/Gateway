@@ -41,7 +41,7 @@ typedef void (*Handler)(void *);
 
 struct Peer;
 typedef struct Peer {
-    char *name;
+    int id;
     int prot;
     void *owner;
     struct Peer *next;
@@ -62,7 +62,7 @@ typedef struct Gateway {
     int server_num;
     int sensor_num;
 
-    char auth_key[33];
+    char auth_key[3];
     int maxfd;
     int access_fd, error_fd;
     fd_set allfd;
@@ -72,7 +72,7 @@ typedef struct Gateway {
 typedef struct Server {
     bool isOK;
 
-    char name[16];
+    int id;
     char ipv4_addr[64];
     int port;
     int type;
@@ -84,10 +84,12 @@ typedef struct Server {
 typedef struct Sensor {
     bool isOK;
 
-    char name[16];
+    // char name[16];
+    int id;
     char file_path[64];
     int type;
 
+    char auth_key[32];
     int fd;
     struct termios oldtio, newtio;
 } Sensor;
@@ -99,6 +101,8 @@ typedef struct Sensor {
 
 void Signal_Handler(int sigid);
 void BIN_Send(int id, char *data);
+int binLogin(int sockfd, int id, char *auth_key);
+void binLogout(int sockfd);
 void HTTP_Send(struct sockaddr_in sock_addr, const char *host, char *data);
 void Save_Exit();
 // Library
