@@ -134,6 +134,8 @@ void GTWY_Init() {
         fdLookup[fd].peer->owner = &sensor_set[0];
         fdLookup[fd].peer->next = NULL;
 
+        sensor_set[0].old_seq = -1;
+
         tcgetattr(sensor_set[0].fd, &sensor_set[0].oldtio);
         sensor_set[0].newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
         sensor_set[0].newtio.c_iflag = IGNPAR;// | ICRNL; Uncomment this flag to stop Linux replacing '\r' by '\n'

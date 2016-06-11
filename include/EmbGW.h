@@ -91,6 +91,7 @@ typedef struct Sensor {
 
     char auth_key[32];
     int fd;
+    int old_seq;
     struct termios oldtio, newtio;
 } Sensor;
 
