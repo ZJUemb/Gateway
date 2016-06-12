@@ -471,6 +471,7 @@ void SensorBT_Handler(fdLUT *lut) {
     /*
      * Packet Identification
      */
+    printf("\033[1;34;40mSensor: \033[0m%s\n", buf);
     int type = buf[1];
     int ret, i;
     if (type == '0') // 872
