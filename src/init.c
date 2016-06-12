@@ -17,6 +17,38 @@
 
 #define BAUDRATE B9600
 
+void openDevice(Sensor *sensor) {
+    char buf[128];
+    int fd = open(sensor->file_path, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    if (fd < 0) {
+        sprintf(buf, "Error: Cannot open device '%s'.", sensor->file_path);
+        perror(buf);
+        exit(1);
+    }
+    sensor->fd = fd;
+    sensor->old_seq = -1;
+    FD_SET(sensor->fd, &myGateway.allfd);
+    if (sensor->fd > myGateway.maxfd)
+        myGateway.maxfd = sensor->fd;
+    // update lookup table
+    fdLookup[fd].type = SENSOR;
+    fdLookup[fd].file_path = sensor->file_path;
+    fdLookup[fd].peer = (Peer *)malloc(sizeof(Peer));
+    fdLookup[fd].peer->id = sensor->id;
+    fdLookup[fd].peer->prot = sensor->type;
+    fdLookup[fd].peer->owner = &sensor;
+    fdLookup[fd].peer->next = NULL;
+    pthread_mutex_init(&fdLookup[fd].lock, NULL);
+    tcgetattr(sensor->fd, &(sensor->oldtio));
+    sensor->newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+    sensor->newtio.c_iflag = IGNPAR;// | ICRNL; Uncomment this flag to stop Linux replacing '\r' by '\n'
+    sensor->newtio.c_oflag = 0;
+    sensor->newtio.c_lflag = 0;//ICANON; receive one byte
+    tcflush(sensor->fd, TCIFLUSH);
+    tcsetattr(sensor->fd, TCSANOW, &sensor->newtio);
+
+}
+
 void genAuthKey(int id, const char *salt, char auth_key[33]) {
     int i;
     MD5_CTX ctx;
@@ -113,38 +145,19 @@ void GTWY_Init() {
     /* download */
     {
         printf("  Open specified device files...");
-        // TODO
+        int i, j;
         char buf[64];
-        int fd = open(sensor_set[0].file_path, O_RDWR | O_NOCTTY | O_NONBLOCK);
-        if (fd < 0) {
-            sprintf(buf, "Error: Cannot open device '%s'.", sensor_set[0].file_path);
-            perror(buf);
-            exit(1);
+        for (i = 0; i < myGateway.sensor_num; i++) {
+            for (j = 0; j <= myGateway.maxfd; j++)
+                if (strcmp(fdLookup[j].file_path, sensor_set[i].file_path) == 0)
+                    break;
+            if (j <= myGateway.maxfd) { // device already opened
+                sensor_set[i].fd = j;
+                continue;
+            }
+            else // open device
+                openDevice(&sensor_set[i]);
         }
-        sensor_set[0].fd = fd;
-        FD_SET(sensor_set[0].fd, &myGateway.allfd);
-        if (sensor_set[0].fd > myGateway.maxfd)
-            myGateway.maxfd = sensor_set[0].fd;
-        // update lookup table
-        fdLookup[fd].type = SENSOR;
-        fdLookup[fd].file_path = sensor_set[0].file_path;
-        pthread_mutex_init(&fdLookup[fd].lock, NULL);
-        fdLookup[fd].peer = (Peer *)malloc(sizeof(Peer));
-        fdLookup[fd].peer->id = sensor_set[0].id;
-        fdLookup[fd].peer->prot = sensor_set[0].type;
-        fdLookup[fd].peer->owner = &sensor_set[0];
-        fdLookup[fd].peer->next = NULL;
-        sensor_set[0].old_seq = -1;
-
-        tcgetattr(sensor_set[0].fd, &sensor_set[0].oldtio);
-        sensor_set[0].newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-        sensor_set[0].newtio.c_iflag = IGNPAR;// | ICRNL; Uncomment this flag to stop Linux replacing '\r' by '\n'
-	    sensor_set[0].newtio.c_oflag = 0;
-	    sensor_set[0].newtio.c_lflag = 0;//ICANON; receive one byte
-        sensor_set[0].newtio.c_cc[VMIN] = 0;
-        sensor_set[0].newtio.c_cc[VTIME] = 10;
-        tcflush(sensor_set[0].fd, TCIFLUSH);
-        tcsetattr(sensor_set[0].fd, TCSANOW, &sensor_set[0].newtio);
         printf("DONE\n");
     }
 

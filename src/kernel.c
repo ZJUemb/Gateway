@@ -23,6 +23,9 @@ extern SensorConfig binaryCtrlConfigs[SensorMax];
 static unsigned int getTime() {
     return (unsigned int)time(NULL);
 }
+static float getFloat(char* buffer) {
+	return (buffer[0]-'0')*10 + (buffer[1]-'0') + 0.1*(buffer[3]-'0') + 0.01*(buffer[4]-'0');
+}
 
 int Sensor870_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
     /*
@@ -132,7 +135,6 @@ int Sensor870_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
     }
     return 0;
 }
-
 int Sensor883_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
     /*
      * package:
@@ -227,6 +229,61 @@ int Sensor883_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
     }
     return 0;
 }
+int Sensor872_Handler(char *buf, ReportPacket *BINbuf) {
+    int device_id;
+    char *buffer = buf + 1;
+    int len = strlen(buffer);
+	if (len != 16) {
+		return -1;
+	}
+	float temp = getFloat(buffer+1);
+	float humid = getFloat(buffer+6);
+	char state = buffer[11];
+	char id[3] = {buffer[12], buffer[13], '\0'};
+	unsigned char check = buffer[14];
+	int sum = 0, i;
+	for (i = 0; i < len-2; i++) {
+		sum += buffer[i];
+	}
+	sum %= 128;
+	/* printf("Len: %d, Temp: %f, Humid: %f State: %c id: %s, Check: %d, sum: %d\n", len, temp, humid, state, id, check, sum); */
+	if (sum != check) {
+		/* printf("Data and Check bit not match!\n"); */
+		return -1;
+	}
+
+    /* device_id = atoi(id); */
+    device_id = 27;
+    cJSON *root, *payload;
+    // pack into JSON
+    {
+        root = cJSON_CreateObject();
+        payload = cJSON_CreateObject();
+        cJSON_AddNumberToObject(root, "auth_id", myGateway.id);
+        cJSON_AddStringToObject(root, "auth_key", myGateway.auth_key);
+        cJSON_AddNumberToObject(root, "device_id", device_id);
+        cJSON_AddItemToObject(root, "payload", payload);
+        {
+            cJSON_AddNumberToObject(payload, "temperature", temp);
+            cJSON_AddNumberToObject(payload, "humidity", humid);
+            cJSON_AddNumberToObject(payload, "state", (int)state);
+        }
+        char *buf_tmp = cJSON_Print(root);
+	    bzero(buf, 512);
+        strcpy(buf, buf_tmp);
+        // TODO Error
+    }
+
+    // pack into BIN
+    {
+    	BINbuf->msgType = MSG_REPORT;
+    	BINbuf->device_id = device_id;
+    	bzero(BINbuf->payload, sizeof(BINbuf->payload));
+    	ParseJson(cJSON_Print(payload), GuessReportSensor(device_id), BINbuf->payload);
+    }
+    return 0;
+}
+int Sensor875_Handler(char *buf, ReportPacket *BINbuf) {}
 int ServerBIN_Handler(Server *server) {
     int i, count;
     char buf[255];
@@ -243,7 +300,7 @@ int ServerBIN_Handler(Server *server) {
     printf("\033[1;34;40mServer: \033[0m");
     for (i = 0; i < count; i++)
         printf("%02x ", buf[i]);
-    printf("\n"); 
+    printf("\n");
     if (strcmp(buf, "on\n") == 0) {
         *(int *)buf = 883;
         *((int *)buf + 1) = 12;
@@ -272,27 +329,24 @@ void *Server_Handler(void *arg) {
     pthread_mutex_unlock(&lut->lock);
 }
 
-void *Sensor_Handler(void *arg) {
-    fdLUT *lut = (fdLUT *)arg;
-    pthread_mutex_lock(&lut->lock);
+void SensorR430_Handler(fdLUT *lut) {
     int fd = lut - &fdLookup[0];
-
     int cnt = 0, device_id, i;
     char type;
     char buf[512];
     ReportPacket BINbuf;
     cnt += read(fd, buf+cnt, 9-cnt);
     if (cnt < 9) { // Uncomplete packet
-	usleep(50000);
-	cnt += read(fd, buf+cnt, 9-cnt);
-	if (cnt < 9) {
-	   // fprintf(stderr, "...Uncomplete packet.\n");
-	    pthread_mutex_unlock(&lut->lock);
+	    usleep(50000);
+	    cnt += read(fd, buf+cnt, 9-cnt);
+    	if (cnt < 9) {
+    	   // fprintf(stderr, "...Uncomplete packet.\n");
+            /* pthread_mutex_unlock(&lut->lock); */
             return; // log TODO
-	}
+    	}
     }
     /*
-     * Package Identification
+     * Packet Identification
      */
     device_id = *(int *)buf;
     type = *((char *)buf + 8);
@@ -310,45 +364,46 @@ void *Sensor_Handler(void *arg) {
                     /* cnt += read(fd, buf+cnt, 14 - cnt); */
                 cnt += read(fd, buf+cnt, 14-cnt);
                 if (cnt < 14) { // Uncomplete package
-		    usleep(50000);
+		            usleep(50000);
                     cnt += read(fd, buf+cnt, 14-cnt);
-		    if (cnt < 14) {
-	    		// fprintf(stderr, "...Uncomplete packet.\n");
+		            if (cnt < 14) {
+	    		        // fprintf(stderr, "...Uncomplete packet.\n");
                         return; // log TODO
-		    }
-		}
-		cnt += read(fd, buf+cnt, sizeof(buf)-cnt);
-		if (cnt > 14)
-		    return;
-		else {
-        	    int i;
-		    printf("\033[1;32;40mSensor: \033[0m");
-        	    for (i = 0; i < 14; i++)
-            	 	printf("%02x ", *((char *)buf + i));
-        	    printf("\n");
-		}
+		            }
+		        }
+        		cnt += read(fd, buf+cnt, sizeof(buf)-cnt);
+        		if (cnt > 14)
+        		    return;
+        		else {
+                	int i;
+        	    	printf("\033[1;32;40mSensor: \033[0m");
+                	for (i = 0; i < 14; i++)
+                    	printf("%02x ", *((char *)buf + i));
+                	printf("\n");
+        		}
                 if (Sensor870_Handler(lut, fd, buf, &BINbuf) < 0)
                     return; // log TODO
-        		for (i = 0; i < myGateway.server_num; i++) {
-			    if (!server_set[i].isOK) continue;
-        		    if (server_set[i].type == HTTP)
-        			    HTTP_Report(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
-        		    else if (server_set[i].type == BIN)
-                        	Written(server_set[i].sockfd, (const char *)&BINbuf, 25);
-        		}
+                for (i = 0; i < myGateway.server_num; i++) {
+        		    if (!server_set[i].isOK)
+                        continue;
+                	if (server_set[i].type == HTTP)
+                		HTTP_Report(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
+                	else if (server_set[i].type == BIN)
+                        Written(server_set[i].sockfd, (const char *)&BINbuf, 25);
+                }
                 break;
         }
     }
     else if (device_id == 25) { // TODO
         switch (type) {
             case 0x00: // ACK or NAK
-		while (cnt < 14) {
-		    cnt+= read(fd, buf+cnt, 14 - cnt);
-		}
-		int i = 0;
-		for (; i < 14; i++)
-		    printf("%02x ", buf[i]);
-		printf("\n");
+        		while (cnt < 14) {
+        		    cnt+= read(fd, buf+cnt, 14 - cnt);
+        		}
+        		int i = 0;
+        		for (; i < 14; i++)
+        		    printf("%02x ", buf[i]);
+        		printf("\n");
                 break;
             case 0x01:
                 // TODO
@@ -359,27 +414,28 @@ void *Sensor_Handler(void *arg) {
                     /* cnt += read(fd, buf+cnt, 18 - cnt); */
                 cnt += read(fd, buf+cnt, 18-cnt);
                 if (cnt < 18) { // Uncomplete package
-		    usleep(50000);
+		            usleep(50000);
                     cnt += read(fd, buf+cnt, 18-cnt);
-		    if (cnt < 18) {
-	    		// fprintf(stderr, "...Uncomplete packet.\n");
+		            if (cnt < 18) {
+	    		        // fprintf(stderr, "...Uncomplete packet.\n");
                         return; // log TODO
-		    }
-		}
-		cnt += read(fd, buf+cnt, sizeof(buf)-cnt);
-		if (cnt > 18)
-		    return;
-		else {
+		            }
+		        }
+		        cnt += read(fd, buf+cnt, sizeof(buf)-cnt);
+		        if (cnt > 18)
+		            return;
+		        else {
         	    int i;
-		    printf("\033[1;32;40mSensor: \033[0m");
+		        printf("\033[1;32;40mSensor: \033[0m");
         	    for (i = 0; i < 18; i++)
             	 	printf("%02x ", *((char *)buf + i));
         	    printf("\n");
-		}
+		        }
                 if (Sensor883_Handler(lut, fd, buf, &BINbuf) < 0)
                     return; // log TODO
                 for (i = 0; i < myGateway.server_num; i++) {
-	       	    if (!server_set[i].isOK) continue;
+	       	        if (!server_set[i].isOK)
+                        continue;
                     if (server_set[i].type == HTTP)
                         HTTP_Report(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
                     else if (server_set[i].type == BIN)
@@ -392,6 +448,54 @@ void *Sensor_Handler(void *arg) {
         // TODO
         // Error
     }
+
+}
+void SensorBT_Handler(fdLUT *lut) {
+    int fd = lut - &fdLookup[0];
+    int cnt = 0;
+    char buf[512];
+    ReportPacket BINbuf;
+
+    cnt += read(fd, buf+cnt, sizeof(buf));
+    if (buf[0] != '{') {
+        return;
+    }
+    if (buf[cnt - 1] != '}') {
+        usleep(200000);
+        cnt += read(fd, buf+cnt, sizeof(buf));
+        if (buf[cnt - 1] != '}') {
+            return; // log TODO
+        }
+    }
+    /*
+     * Packet Identification
+     */
+    int type = buf[1];
+    int ret, i;
+    if (type == '0') // 872
+        ret = Sensor872_Handler(buf, &BINbuf);
+    else if (type == '1') // 875
+        ret = Sensor875_Handler(buf, &BINbuf);
+
+    if (ret < 0)
+        return; // log TODO
+    for (i = 0; i < myGateway.server_num; i++) {
+        if (!server_set[i].isOK)
+            continue;
+        if (server_set[i].type == HTTP)
+            HTTP_Report(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
+        else if (server_set[i].type == BIN)
+            Written(server_set[i].sockfd, (const char *)&BINbuf, 25);
+    }
+}
+
+void *Sensor_Handler(void *arg) {
+    fdLUT *lut = (fdLUT *)arg;
+    pthread_mutex_lock(&lut->lock);
+    if (lut->type == R430)
+        SensorR430_Handler(lut);
+    else if (lut->type == BT)
+        SensorBT_Handler(lut);
     pthread_mutex_unlock(&lut->lock);
 }
 
