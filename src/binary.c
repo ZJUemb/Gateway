@@ -172,24 +172,6 @@ void binLogout(int sockfd){
 	send(sockfd, (char*)&logout, sizeof(LogoutPacket), 0);
 }
 
-int Report(int sockfd, int device_id, char *jsonData){
-    int ret;
-    ReportPacket report;
-    AckPacket ack;
-    report.msgType = MSG_REPORT;
-    report.device_id = device_id;
-    memset(report.payload, 0, sizeof(report.payload));
-    ret = ParseJson(jsonData, GuessReportSensor(device_id), report.payload);
-	if (ret <= 0)
-		return ret;
-	ret = send(sockfd, (char*)&report, sizeof(ReportPacket), 0);
-	if (ret < 0)
-		return -1;
-	ret = recv(sockfd, (char*)&ack, sizeof(AckPacket), 0);
-	if (ret < 0 || ack.msgType == MSG_NAK)
-		return -1;
-	return 1;
-}
 int Ctrl(int sockfd, int *device_id, char *dataJson){
 	CtrlPacket ctrl;
 	int ret;

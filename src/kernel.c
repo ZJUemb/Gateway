@@ -325,6 +325,7 @@ void *Sensor_Handler(void *arg) {
         		    if (server_set[i].type == HTTP)
         			    HTTP_Report(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
         		    else if (server_set[i].type == BIN);
+                        Written(server_set[i].sockfd, (const char *)&BINbuf, sizeof(BINbuf));
                         /* BIN_Report(server_set[i].sockfd, device_id, buf); */
         		}
                 break;
@@ -361,7 +362,8 @@ void *Sensor_Handler(void *arg) {
                 for (i = 0; i < myGateway.server_num; i++) {
                     if (server_set[i].type == HTTP)
                         HTTP_Report(server_set[i].sock_addr, server_set[i].ipv4_addr, buf);
-                    else if (server_set[i].type == BIN);
+                    else if (server_set[i].type == BIN)
+                        Written(server_set[i].sockfd, (const char *)&BINbuf, sizeof(BINbuf));
                         /* BIN_Report(server_set[i].sockfd, buf); */
                 }
                 break;
