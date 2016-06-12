@@ -62,7 +62,7 @@ typedef struct Gateway {
     int server_num;
     int sensor_num;
 
-    char auth_key[3];
+    char auth_key[33];
     int maxfd;
     int access_fd, error_fd;
     fd_set allfd;
@@ -89,9 +89,9 @@ typedef struct Sensor {
     char file_path[64];
     int type;
 
-    char auth_key[32];
-    int fd;
+    char auth_key[33];
     int old_seq;
+    int fd;
     struct termios oldtio, newtio;
 } Sensor;
 

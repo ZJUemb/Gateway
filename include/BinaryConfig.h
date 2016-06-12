@@ -30,77 +30,11 @@ typedef enum{
 typedef enum{
 	DeviceID_872 = 872,
 	DeviceID_875 = 875,
-	DeviceID_870 = 870,
-	DeviceID_883 = 883,
+	DeviceID_870 = 24,
+	DeviceID_883 = 25,
 }DeviceID;
 
-SensorConfig binaryReportConfigs[SensorMax] = {
-	{ //Sensor_872
-		DeviceID_872,
-		5,
-		"type",		DataType_Int,	4,
-		"temp",		DataType_Float, 4,
-		"wet",		DataType_Float, 4,
-		"state",	DataType_Int,	4,
-		"id",		DataType_Int,	4
-	},
-	{ //Sensor_875
-		DeviceID_875,//device_id
-		4,			//dataCount
-		"type",		DataType_Int,	4,
-		"pid",		DataType_Int,	4,
-		"time",		DataType_Int,	4,
-		"result",	DataType_Int,	4
-	},
-	{ //Sensor_870
-		DeviceID_870,
-		2,
-		"type",		DataType_Int,	4,
-		"state",	DataType_Int,	4,
-	},
-	{ //Sensor_883
-		DeviceID_883,
-		2,
-		"state",	DataType_Int,	4,
-		"value",	DataType_Float,	4,
-	},
-};
+SensorConfig* GuessReportSensor(int device_id);
+SensorConfig* GuessCtrlSensor(int device_id);
 
-SensorConfig binaryCtrlConfigs[SensorMax] = {
-	{ //Sensor_872
-		DeviceID_872,
-		1,
-		"start",	DataType_Int,	4
-	},
-	{ //Sensor_875
-		DeviceID_875,
-		1,
-		"result",	DataType_Int,	4
-	},
-	{ //Sensor_870
-		DeviceID_870,
-		1,
-		"action",	DataType_Int,	4
-	},
-	{ //Sensor_883
-		DeviceID_883,
-		1,
-		"action",	DataType_Int,	4
-	},
-};
-
-SensorConfig* GuessReportSensor(int device_id){
-    int i;
-	for (i = 0; i < SensorMax; i++)
-		if (binaryReportConfigs[i].device_id == device_id)
-			return binaryReportConfigs + i;
-	return NULL;
-}
-SensorConfig* GuessCtrlSensor(int device_id){
-    int i;
-	for (i = 0; i < SensorMax; i++)
-		if (binaryCtrlConfigs[i].device_id == device_id)
-			return binaryCtrlConfigs + i;
-	return NULL;
-}
 #endif

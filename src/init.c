@@ -17,7 +17,7 @@
 
 #define BAUDRATE B9600
 
-void genAuthKey(int id, const char *salt, char auth_key[32]) {
+void genAuthKey(int id, const char *salt, char auth_key[33]) {
     int i;
     MD5_CTX ctx;
     char id_str[16], buf[64];
@@ -37,6 +37,7 @@ void genAuthKey(int id, const char *salt, char auth_key[32]) {
     for (i = 0; i < 16; i++) {
         sprintf(auth_key+i*2, "%02x", hash[i]);
     }
+    auth_key[32] = 0;
 }
 
 void GTWY_Init() {
@@ -114,7 +115,7 @@ void GTWY_Init() {
         printf("  Open specified device files...");
         // TODO
         char buf[64];
-        int fd = open(sensor_set[0].file_path, O_RDWR | O_NOCTTY);
+        int fd = open(sensor_set[0].file_path, O_RDWR | O_NOCTTY | O_NONBLOCK);
         if (fd < 0) {
             sprintf(buf, "Error: Cannot open device '%s'.", sensor_set[0].file_path);
             perror(buf);
@@ -133,7 +134,6 @@ void GTWY_Init() {
         fdLookup[fd].peer->prot = sensor_set[0].type;
         fdLookup[fd].peer->owner = &sensor_set[0];
         fdLookup[fd].peer->next = NULL;
-
         sensor_set[0].old_seq = -1;
 
         tcgetattr(sensor_set[0].fd, &sensor_set[0].oldtio);
@@ -141,8 +141,8 @@ void GTWY_Init() {
         sensor_set[0].newtio.c_iflag = IGNPAR;// | ICRNL; Uncomment this flag to stop Linux replacing '\r' by '\n'
 	    sensor_set[0].newtio.c_oflag = 0;
 	    sensor_set[0].newtio.c_lflag = 0;//ICANON; receive one byte
-        sensor_set[0].newtio.c_cc[VMIN] = 1;
-        sensor_set[0].newtio.c_cc[VTIME] = 0;
+        sensor_set[0].newtio.c_cc[VMIN] = 0;
+        sensor_set[0].newtio.c_cc[VTIME] = 10;
         tcflush(sensor_set[0].fd, TCIFLUSH);
         tcsetattr(sensor_set[0].fd, TCSANOW, &sensor_set[0].newtio);
         printf("DONE\n");
