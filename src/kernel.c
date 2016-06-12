@@ -467,6 +467,7 @@ void SensorBT_Handler(fdLUT *lut) {
             return; // log TODO
         }
     }
+    buf[cnt] = 0;
     /*
      * Packet Identification
      */
@@ -525,11 +526,11 @@ void GTWY_Work() {
                 continue;
             // ok now
             if (fdLookup[sel_fd].type == SERVER)
-                thpool_add_work(myGateway.thpool, Server_Handler, (void *)&fdLookup[sel_fd]);
-	//	Server_Handler(&fdLookup[sel_fd]);
-            else if (fdLookup[sel_fd].type == SENSOR)
-                thpool_add_work(myGateway.thpool, Sensor_Handler, (void *)&fdLookup[sel_fd]);
-	//	Sensor_Handler(&fdLookup[sel_fd]);
+        //        thpool_add_work(myGateway.thpool, Server_Handler, (void *)&fdLookup[sel_fd]);
+		Server_Handler(&fdLookup[sel_fd]);
+            else // sensor
+       //         thpool_add_work(myGateway.thpool, Sensor_Handler, (void *)&fdLookup[sel_fd]);
+		Sensor_Handler(&fdLookup[sel_fd]);
         }
     }
 }

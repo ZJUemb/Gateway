@@ -17,7 +17,7 @@
 
 #define BAUDRATE B9600
 
-void openDevice(Sensor *sensor) {
+void openDevice(Sensor *sensor, int sensorType) {
     char buf[128];
     int fd = open(sensor->file_path, O_RDWR | O_NOCTTY | O_NONBLOCK);
     if (fd < 0) {
@@ -31,7 +31,7 @@ void openDevice(Sensor *sensor) {
     if (sensor->fd > myGateway.maxfd)
         myGateway.maxfd = sensor->fd;
     // update lookup table
-    fdLookup[fd].type = SENSOR;
+    fdLookup[fd].type = sensorType;
     fdLookup[fd].file_path = sensor->file_path;
     fdLookup[fd].peer = (Peer *)malloc(sizeof(Peer));
     fdLookup[fd].peer->id = sensor->id;
@@ -148,15 +148,21 @@ void GTWY_Init() {
         int i, j;
         char buf[64];
         for (i = 0; i < myGateway.sensor_num; i++) {
-            for (j = 0; j <= myGateway.maxfd; j++)
+            for (j = 0; j <= myGateway.maxfd; j++) {
+		if (fdLookup[j].file_path == NULL)
+		    continue;
                 if (strcmp(fdLookup[j].file_path, sensor_set[i].file_path) == 0)
                     break;
+	    }
             if (j <= myGateway.maxfd) { // device already opened
                 sensor_set[i].fd = j;
                 continue;
             }
             else // open device
-                openDevice(&sensor_set[i]);
+		if (sensor_set[i].type == BT)
+                    openDevice(&sensor_set[i], BT);
+		else
+		    openDevice(&sensor_set[i], R430);
         }
         printf("DONE\n");
     }
