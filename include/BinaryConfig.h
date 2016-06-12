@@ -30,7 +30,7 @@ typedef enum{
 typedef enum{
 	DeviceID_872 = 872,
 	DeviceID_875 = 875,
-	DeviceID_870 = 24,
+	DeviceID_870 = 26,
 	DeviceID_883 = 25,
 }DeviceID;
 
