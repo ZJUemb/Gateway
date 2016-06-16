@@ -34,15 +34,15 @@ SensorConfig binaryReportConfigs[SensorMax] = {
 	{ //Sensor_875
 		DeviceID_875,//device_id
 		4,			//dataCount
-		"type",		DataType_Int,	4,
-		"pid",		DataType_Int,	4,
-		"time",		DataType_Int,	4,
-		"result",	DataType_Int,	4
+		"type",		DataType_String,	1,
+		"pid",		DataType_String,	4,
+		"time",		DataType_String,	8,
+		"result",	DataType_String,	1
 	},
 	{ //Sensor_870
 		DeviceID_870,
 		4,
-		"Activate LED bit",		DataType_Int,	4,
+		"ActivateLEDbit",		DataType_Int,	4,
 		"Sound",		DataType_Int,	4,
 		"Light",		DataType_Int,	4,
 		"LEDState",		DataType_Int,	4,

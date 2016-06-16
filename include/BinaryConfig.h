@@ -29,8 +29,8 @@ typedef enum{
 //Copy From Server
 typedef enum{
 	DeviceID_872 = 872,
-	DeviceID_875 = 875,
-	DeviceID_870 = 26,
+	DeviceID_875 = 28,
+	DeviceID_870 = 43,
 	DeviceID_883 = 25,
 }DeviceID;
 

@@ -104,9 +104,9 @@ int Sensor870_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
         cJSON_AddItemToObject(root, "payload", payload);
         {
             if ((data & 0x8) == 0)
-                cJSON_AddNumberToObject(payload, "Activate LED bit", 0);
+                cJSON_AddNumberToObject(payload, "ActivateLEDbit", 0);
                         else
-                cJSON_AddNumberToObject(payload, "Activate LED bit", 1);
+                cJSON_AddNumberToObject(payload, "ActivateLEDbit", 1);
             if ((data & 0x4) == 0)
                 cJSON_AddNumberToObject(payload, "Sound", 0);
             else
@@ -161,7 +161,8 @@ int Sensor883_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
 
     // decode
     {
-        device_id = *((int *)buf);
+       // device_id = *((int *)buf);
+	device_id = 25; // TODO
         seq_number = *((int *)buf + 1);
         data = *((char *)buf + 9);
         value = *((int *)((char *)buf + 10));
@@ -253,7 +254,7 @@ int Sensor872_Handler(char *buf, ReportPacket *BINbuf) {
 	}
 
     /* device_id = atoi(id); */
-    device_id = 27;
+    device_id = 4;
     cJSON *root, *payload;
     // pack into JSON
     {
@@ -283,7 +284,61 @@ int Sensor872_Handler(char *buf, ReportPacket *BINbuf) {
     }
     return 0;
 }
-int Sensor875_Handler(char *buf, ReportPacket *BINbuf) {}
+int Sensor875_Handler(char *buf, ReportPacket *BINbuf) {
+    int device_id;
+    char *buffer = buf + 1;
+    int len = strlen(buffer);
+	if (len != 16) {
+		return -1;
+	}
+	char type[] = {buffer[0], 0};
+	char result[] = {buffer[13], 0};
+	char pid[5], time[9];
+	memcpy(pid, buffer+1, 4);
+	memcpy(time, buffer+5, 8);
+	pid[4] = 0; time[8] = 0;
+	unsigned char check = buffer[14];
+	int sum = 0, i;
+	for (i = 0; i < len-2; i++) {
+		sum += buffer[i];
+	}
+	sum %= 128;
+	if (sum != check) {
+		/* printf("Data and Check bit not match!\n"); */
+		return -1;
+	}
+
+    device_id = 28;
+    cJSON *root, *payload;
+    // pack into JSON
+    {
+        root = cJSON_CreateObject();
+        payload = cJSON_CreateObject();
+        cJSON_AddNumberToObject(root, "auth_id", myGateway.id);
+        cJSON_AddStringToObject(root, "auth_key", myGateway.auth_key);
+        cJSON_AddNumberToObject(root, "device_id", device_id);
+        cJSON_AddItemToObject(root, "payload", payload);
+        {
+            cJSON_AddStringToObject(payload, "type", type);
+            cJSON_AddStringToObject(payload, "pid", pid);
+            cJSON_AddStringToObject(payload, "time", time);
+            cJSON_AddStringToObject(payload, "result", result);
+        }
+        char *buf_tmp = cJSON_Print(root);
+	    bzero(buf, 512);
+        strcpy(buf, buf_tmp);
+        // TODO Error
+    }
+
+    // pack into BIN
+    {
+    	BINbuf->msgType = MSG_REPORT;
+    	BINbuf->device_id = device_id;
+    	bzero(BINbuf->payload, sizeof(BINbuf->payload));
+    	ParseJson(cJSON_Print(payload), GuessReportSensor(device_id), BINbuf->payload);
+    }
+    return 0;
+}
 int ServerBIN_Handler(Server *server) {
     int i, count;
     char buf[255];
@@ -301,21 +356,53 @@ int ServerBIN_Handler(Server *server) {
     for (i = 0; i < count; i++)
         printf("%02x ", buf[i]);
     printf("\n");
-    if (strcmp(buf, "on\n") == 0) {
+
+    char *cmd = buf + 5;
+    if (strcmp(cmd, "on") == 0) {
         *(int *)buf = 883;
         *((int *)buf + 1) = 12;
         *((char *)buf + 8) = 0x01;
         *((char *)buf + 9) = 0x1;
         *((int *)((char *)buf + 10)) = 0x12345678;
+    	printf("cmd = %s\n", cmd);
+        Written(sensor_set[0].fd, buf, 14);
     }
-    else if (strcmp(buf, "off\n") == 0) {
+    else if (strcmp(cmd, "off") == 0) {
         *(int *)buf = 883;
         *((int *)buf + 1) = 12;
         *((char *)buf + 8) = 0x01;
         *((char *)buf + 9) = 0x0;
         *((int *)((char *)buf + 10)) = 0x12345678;
+        Written(sensor_set[0].fd, buf, 14);
     }
-    //Written(sensor_set[0].fd, buf, 14);
+    else if (strcmp(cmd, "auto") == 0) {
+        *(int *)buf = 883;
+        *((int *)buf + 1) = 12;
+        *((char *)buf + 8) = 0x01;
+        *((char *)buf + 9) = 0x2;
+        *((int *)((char *)buf + 10)) = 0x12345678;
+        Written(sensor_set[0].fd, buf, 14);
+    }
+    else { 
+    char type = *buf;
+    int device_id = *(int *)(buf + 1);
+    if (device_id == 4) {
+ 	char data = *(buf + 5);
+	char cmd_buf[4] = {'{', data, '}', '\0'};
+	
+	Written(sensor_set[2].fd, cmd_buf, 3);
+	printf("\tsend to sensor: %s\n", cmd_buf);
+    }
+    else if (device_id == 43) {
+	int comm = *(buf+5) - '0';
+	*(int *)buf = 43;
+        *((int *)buf + 1) = 12;
+        *((char *)buf + 8) = 0x01;
+        *((char *)buf + 9) = comm;
+        *((int *)((char *)buf + 10)) = 0x12345678;
+	Written(sensor_set[0].fd, buf, 14);
+    }
+    }
 }
 
 void *Server_Handler(void *arg) {
@@ -349,9 +436,10 @@ void SensorR430_Handler(fdLUT *lut) {
      * Packet Identification
      */
     device_id = *(int *)buf;
+    printf("id = %d\n", device_id);
     type = *((char *)buf + 8);
     // TODO add device_id in configuration
-    if (device_id == 26) {
+    if (device_id == 43) {
         switch (type) {
             case 0x00: // ACK or NAK
                 break;
@@ -394,7 +482,7 @@ void SensorR430_Handler(fdLUT *lut) {
                 break;
         }
     }
-    else if (device_id == 25) { // TODO
+    else if (device_id == 883) { // TODO
         switch (type) {
             case 0x00: // ACK or NAK
         		while (cnt < 14) {
@@ -492,12 +580,13 @@ void SensorBT_Handler(fdLUT *lut) {
 }
 
 void *Sensor_Handler(void *arg) {
+    printf("Sensor_Handler\n");
     fdLUT *lut = (fdLUT *)arg;
     pthread_mutex_lock(&lut->lock);
     if (lut->type == R430)
         SensorR430_Handler(lut);
     else if (lut->type == BT)
-        SensorBT_Handler(lut);
+        SensorR430_Handler(lut);
     pthread_mutex_unlock(&lut->lock);
 }
 
