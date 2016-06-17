@@ -9,15 +9,9 @@
 
 void Sensor870_sched(int timer) {
     int i;
-    while (1) {
-        for (i = 0; i < myGateway.server_num; i++) {
-            if (serser_set[i].type == BIN) { // BIN
-                BIN_Poll();
-            }
-            else { // HTTP
-                HTTP_Poll();
-            }
-        }
-        sleep(timer);
+    for (i = 0; i < myGateway.server_num; i++) {
+	if (server_set[i].type == HTTP) {
+	    
+	}
     }
 }
