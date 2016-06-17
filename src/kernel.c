@@ -47,6 +47,7 @@ int Sensor870_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
      *
      */
     int device_id;
+    int report_id;
     int seq_number;
     char data;
     int timestamp;
@@ -54,7 +55,8 @@ int Sensor870_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
     // decode
     {
         device_id = *((int *)buf);
-        seq_number = *((int *)buf + 1);
+        report_id = 0;
+	seq_number = *((int *)buf + 1);
         data = *((char *)buf + 9);
         timestamp = *((int *)((char *)buf + 10));
     }
@@ -101,7 +103,8 @@ int Sensor870_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
         cJSON_AddNumberToObject(root, "auth_id", myGateway.id);
         cJSON_AddStringToObject(root, "auth_key", myGateway.auth_key);
         cJSON_AddNumberToObject(root, "device_id", device_id);
-        cJSON_AddItemToObject(root, "payload", payload);
+        cJSON_AddNumberToObject(root, "report_id", report_id);
+	cJSON_AddItemToObject(root, "payload", payload);
         {
             if ((data & 0x8) == 0)
                 cJSON_AddNumberToObject(payload, "ActivateLEDbit", 0);
@@ -155,6 +158,7 @@ int Sensor883_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
      *
      */
     int device_id;
+    int report_id;
     int seq_number;
     char data;
     int value, timestamp;
@@ -163,7 +167,8 @@ int Sensor883_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
     {
        // device_id = *((int *)buf);
 	device_id = 25; // TODO
-        seq_number = *((int *)buf + 1);
+        report_id = 0;
+	seq_number = *((int *)buf + 1);
         data = *((char *)buf + 9);
         value = *((int *)((char *)buf + 10));
         timestamp = *((int *)((char *)buf + 14));
@@ -212,7 +217,8 @@ int Sensor883_Handler(fdLUT *lut, int fd, char *buf, ReportPacket *BINbuf) {
         cJSON_AddNumberToObject(root, "auth_id", myGateway.id);
         cJSON_AddStringToObject(root, "auth_key", myGateway.auth_key);
         cJSON_AddNumberToObject(root, "device_id", device_id);
-        cJSON_AddItemToObject(root, "payload", payload);
+        cJSON_AddNumberToObject(root, "report_id", report_id);
+	cJSON_AddItemToObject(root, "payload", payload);
         {
             cJSON_AddNumberToObject(payload, "data", (int)data);
             cJSON_AddNumberToObject(payload, "value", value);
@@ -255,6 +261,7 @@ int Sensor872_Handler(char *buf, ReportPacket *BINbuf) {
 
     /* device_id = atoi(id); */
     device_id = 4;
+    int report_id = 27;
     cJSON *root, *payload;
     // pack into JSON
     {
@@ -263,7 +270,8 @@ int Sensor872_Handler(char *buf, ReportPacket *BINbuf) {
         cJSON_AddNumberToObject(root, "auth_id", myGateway.id);
         cJSON_AddStringToObject(root, "auth_key", myGateway.auth_key);
         cJSON_AddNumberToObject(root, "device_id", device_id);
-        cJSON_AddItemToObject(root, "payload", payload);
+        cJSON_AddNumberToObject(root, "report_id", report_id);
+	cJSON_AddItemToObject(root, "payload", payload);
         {
             cJSON_AddNumberToObject(payload, "temperature", temp);
             cJSON_AddNumberToObject(payload, "humidity", humid);
@@ -317,7 +325,8 @@ int Sensor875_Handler(char *buf, ReportPacket *BINbuf) {
         cJSON_AddNumberToObject(root, "auth_id", myGateway.id);
         cJSON_AddStringToObject(root, "auth_key", myGateway.auth_key);
         cJSON_AddNumberToObject(root, "device_id", device_id);
-        cJSON_AddItemToObject(root, "payload", payload);
+        cJSON_AddNumberToObject(root, "report_id", report_id);
+	cJSON_AddItemToObject(root, "payload", payload);
         {
             cJSON_AddStringToObject(payload, "type", type);
             cJSON_AddStringToObject(payload, "pid", pid);
