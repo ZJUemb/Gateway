@@ -74,6 +74,19 @@ void HTTP_Poll(struct sockaddr_in sock_addr, const char *host, char *data) {
     	char *tok;
     	bzero(buf, sizeof(buf));
     	Read(serv_fd, buf, sizeof(buf));
+	tok = buf;
+	int code, data;
+		//json = buf;
+	while (*tok++ != '{');
+	while (*tok++ != ':');
+	while (*tok != '0' && *tok != '-')tok++;
+	if (*tok == '0')
+		code = 0;
+	else
+		code = -1;
+	while (*tok++ != ':');
+	while (*tok != '0' && *tok != '1')tok++;
+	data = *tok - '0';
         /* printf("\t\033[0;32;40mServer reply: \033[0m"); */
         /* tok = strtok(buf, " "); */
         /* if ((tok = strtok(NULL, " \t")) != NULL) */
