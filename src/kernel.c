@@ -383,13 +383,13 @@ int ServerBIN_Handler(Server *server) {
         *((int *)((char *)buf + 10)) = 0x12345678;
         Written(sensor_set[0].fd, buf, 14);
     }
-    else { 
+    else {
     char type = *buf;
     int device_id = *(int *)(buf + 1);
     if (device_id == 4) {
  	char data = *(buf + 5);
 	char cmd_buf[4] = {'{', data, '}', '\0'};
-	
+
 	Written(sensor_set[2].fd, cmd_buf, 3);
 	printf("\tsend to sensor: %s\n", cmd_buf);
     }

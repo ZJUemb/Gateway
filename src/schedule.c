@@ -6,18 +6,31 @@
  ************************************************************************/
 
 #include <EmbGW.h>
+#include <cJSON.h>
 
-void Sensor870_sched(int timer) {
+static void Sensor_sched(int device_id) {
     int i;
-    while (1) {
-        for (i = 0; i < myGateway.server_num; i++) {
-            if (serser_set[i].type == BIN) { // BIN
-                BIN_Poll();
-            }
-            else { // HTTP
-                HTTP_Poll();
-            }
+    char buf[512];
+    cJSON *root;
+    root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "auth_id", myGateway.id);
+    cJSON_AddStringToObject(root, "auth_key", myGateway.auth_key);
+    cJSON_AddNumberToObject(root, "device_id", device_id);
+    strcpy(buf, cJSON_Print(root));
+    for (i = 0; i < myGateway.server_num; i++) {
+        Server server = server_set[i];
+        if (server.type == HTTP) {
+            HTTP_Poll(server.sock_addr, server.ipv4_addr, buf);
         }
-        sleep(timer);
     }
+}
+
+inline void Sensor870_Handler() {
+    Sensor_sched(Sensor870_ID);
+}
+inline void Sensor872_Handler() {
+    Sensor_sched(Sensor872_ID);
+}
+inline void Sensor883_Handler() {
+    Sensor_sched(Sensor883_ID);
 }
