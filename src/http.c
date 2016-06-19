@@ -78,7 +78,6 @@ void HTTP_Poll(struct sockaddr_in sock_addr, const char *host, char *data, Senso
     	Read(serv_fd, buf, sizeof(buf));
 	tok = buf;
 	int code, data;
- 	//json = buf;
 	while (*tok++ != '{');
 	while (*tok++ != ':');
 	while (*tok != '0' && *tok != '-')tok++;
