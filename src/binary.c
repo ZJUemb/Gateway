@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include <string.h>
+#include <EmbGW.h>
 #include <stdlib.h>
 
 
@@ -24,15 +25,13 @@
 SensorConfig binaryReportConfigs[SensorMax] = {
 	{ //Sensor_872
 		DeviceID_872,
-		5,
-		"type",		DataType_Int,	4,
-		"temp",		DataType_Float, 4,
-		"wet",		DataType_Float, 4,
-		"state",	DataType_Int,	4,
-		"id",		DataType_Int,	4
+		3,
+		"temperature",		DataType_Float, 4,
+		"humidity",		DataType_Float, 4,
+		"state",	DataType_String,	1,
 	},
 	{ //Sensor_875
-		DeviceID_875,//device_id
+		DeviceID_875,
 		4,			//dataCount
 		"type",		DataType_String,	1,
 		"pid",		DataType_String,	4,
@@ -94,6 +93,7 @@ SensorConfig* GuessCtrlSensor(int device_id){
 }
 
 int ParseJson(char *dataStr, SensorConfig *dataStructure, char *payload){
+	float a;
 	if (dataStructure == NULL)
 		return -1;
 	cJSON *jsonRoot, *jsonSub;
@@ -112,7 +112,9 @@ int ParseJson(char *dataStr, SensorConfig *dataStructure, char *payload){
 			*(int *)payload = jsonSub->valueint;
 			break;
 		case DataType_Float:
-			*(float *)payload = jsonSub->valuedouble;
+			a = jsonSub->valuedouble;
+			printf("BIN: %f\n", a);
+			*(float *)payload = a;
 			break;
 		case DataType_String:
 			strcpy(payload, jsonSub->valuestring);

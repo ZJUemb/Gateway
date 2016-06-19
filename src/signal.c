@@ -21,7 +21,10 @@ void Signal_Handler(int sigid) {
         case SIGALRM:
             // TODO
             // poll
-            alarm(10);
+	    thpool_add_work(myGateway.thpool, Sensor870_sched, (void *)NULL);
+	    thpool_add_work(myGateway.thpool, Sensor872_sched, (void *)NULL);
+	    thpool_add_work(myGateway.thpool, Sensor883_sched, (void *)NULL);
+            alarm(100);
             /* printf("10 second triggered.\n"); */
             break;
         case SIGPIPE:

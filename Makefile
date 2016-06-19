@@ -13,7 +13,7 @@ CLEANFILES=gateway tmp/*
 _DEPS=EmbGW.h md5.h
 _OBJ=md5.o wrapper.o myerr.o controller.o config.o\
 	 init.o kernel.o signal.o thpool.o http.o binary.o\
-	 cJSON.o
+	 cJSON.o schedule.o
 DEPS=$(patsubst %, $(IDIR)/%, $(_DEPS))
 OBJ=$(patsubst %, $(ODIR)/%, $(_OBJ))
 

@@ -18,7 +18,7 @@
 #define MAXSERVERNUM        4
 #define MAXSENSORNUM        4
 #define MAXFILEDESCRIPTOR   64
-#define MAXTHREADNUM        8
+#define MAXTHREADNUM        18
 
 #define BT                  0x0801
 #define R430                0x0802
@@ -28,7 +28,6 @@
 #define SENSOR              0x1001
 #define SERVER              0x1002
 
-#define SENSOR1		    883
 
 typedef unsigned char bool;
 #define TRUE                1
@@ -100,11 +99,15 @@ typedef struct Sensor {
  * function
  */
 
+void *Sensor870_sched(void *arg);
+void *Sensor872_sched(void *arg);
+void *Sensor883_sched(void *arg);
 void Signal_Handler(int sigid);
 void BIN_Send(int id, char *data);
 int binLogin(int sockfd, int id, char *auth_key);
 void binLogout(int sockfd);
 void HTTP_Send(struct sockaddr_in sock_addr, const char *host, char *data);
+void HTTP_Poll(struct sockaddr_in sock_addr, const char *host, char *data, Sensor *sensor);
 void Save_Exit();
 // Library
 int Socket(int family, int type, int protocol);
@@ -116,7 +119,6 @@ int Select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,\
         struct timeval *timeout);
 int Close(int sockfd);
 
-static void err_doit(int errnoflag, int error, const char *fmt, va_list ap);
 void err_quit(const char *fmt, ...);
 void err_msg(const char *fmt, ...);
 void err_dump(const char *fmt, ...);
@@ -137,5 +139,5 @@ Server server_set[MAXSERVERNUM];
 Sensor sensor_set[MAXSENSORNUM];
 fdLUT fdLookup[MAXFILEDESCRIPTOR];
 
-
+int Sensor870_ID, Sensor872_ID, Sensor875_ID, Sensor883_ID;
 #endif

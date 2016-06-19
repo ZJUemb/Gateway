@@ -8,7 +8,7 @@ typedef enum{
 	DataType_NONE,
 	DataType_Int,
 	DataType_Float,
-	DataType_String,
+	DataType_String
 }DataType;
 typedef struct{
 	const char* dataName;
@@ -28,7 +28,7 @@ typedef enum{
 }SensorID;
 //Copy From Server
 typedef enum{
-	DeviceID_872 = 872,
+	DeviceID_872 = 4,
 	DeviceID_875 = 28,
 	DeviceID_870 = 43,
 	DeviceID_883 = 25,

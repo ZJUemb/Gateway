@@ -199,7 +199,7 @@ void GTWY_Init() {
         signal(SIGINT, Signal_Handler);
         signal(SIGTERM, Signal_Handler);
         signal(SIGQUIT, Signal_Handler);
-        signal(SIGALRM, Signal_Handler);
+       signal(SIGALRM, Signal_Handler);
         signal(SIGPIPE, Signal_Handler);
         printf("DONE\n");
     }

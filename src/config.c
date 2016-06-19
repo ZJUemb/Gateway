@@ -102,16 +102,23 @@ void Load_Conf() {
             count = MAXSENSORNUM;
         }
         for (i = 0; i < count; i++) {
-            int id;
-            const char *group, *device, *type;
+            int id, group;
+            const char *device, *type;
             config_setting_t *sensor = config_setting_get_elem(download, i);
 
             if (!(config_setting_lookup_int(sensor, "id", &id)
+		&& config_setting_lookup_int(sensor, "group", &group)
                 && config_setting_lookup_string(sensor, "device", &device)
                 && config_setting_lookup_string(sensor, "type", &type))) {
                 fprintf(stderr, "Error: Cannot resolve the %dth item in #DOWNLOAD field. Please review the config file.\n", i);
                 exit(1);
             }
+	    switch (group) {
+		case 870: Sensor870_ID = id; break;
+		case 872: Sensor872_ID = id; break;
+		case 875: Sensor875_ID = id; break;
+		case 883: Sensor883_ID = id; break;
+	    }
             sensor_set[i].id = id;
             strncpy(sensor_set[i].file_path, device, sizeof(sensor_set[i].file_path));
             if (strcmp(type, "BT") == 0)
