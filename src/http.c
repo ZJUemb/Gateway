@@ -29,7 +29,6 @@ void HTTP_Report(struct sockaddr_in sock_addr, const char *host, char *data) {
         sprintf(buf_temp, "\r\n");
         strcat(buf, buf_temp);
 	strcat(buf, data);
-	printf("buf = %s\n", buf);
         Written(serv_fd, buf, strlen(buf));
     }
 

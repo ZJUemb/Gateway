@@ -357,7 +357,7 @@ int ServerBIN_Handler(Server *server) {
         return -1;
     }
     if (buf[0] == 0x00 || buf[0] == 0x01) { // ACK or NACK
-	printf("\033[1;32;40m\tServer reply: %02x\n\033[0m", buf[0]);
+	printf("\033[0;32;40m\tServer reply: %02x\n\033[0m", buf[0]);
     }
     else if (buf[0] == 0x04) { // Control
 	printf("\033[1;34;40mServer: \033[0m");
@@ -373,7 +373,7 @@ int ServerBIN_Handler(Server *server) {
 	    *((char *)buf + 9) = comm;
 	    *((int *)((char *)buf + 10)) = 0x12345678;
 	    Written(sensor_set[0].fd, buf, 14);
-	    printf("\033[1;32;40m\tSend to sensor 883-%d: \033[0m", device_id);
+	    printf("\033[0;34;40m\tSend to sensor 883-%d: \033[0m", device_id);
 	    for (i = 0; i < 14; i++)
 		printf("%02x ", buf[i]);
 	    printf("\n");
@@ -386,7 +386,7 @@ int ServerBIN_Handler(Server *server) {
 	    *((char *)buf + 9) = comm;
 	    *((int *)((char *)buf + 10)) = 0x12345678;
 	    Written(sensor_set[0].fd, buf, 14);
-	    printf("\033[1;32;40m\tSend to sensor 870-%d: \033[0m", device_id);
+	    printf("\033[0;34;40m\tSend to sensor 870-%d: \033[0m", device_id);
 	    for (i = 0; i < 14; i++)
 		printf("%02x ", buf[i]);
 	    printf("\n");
@@ -395,7 +395,7 @@ int ServerBIN_Handler(Server *server) {
 	    char data = *(buf + 5);
 	    char cmd_buf[4] = {'{', data, '}', '\0'};
 	    Written(sensor_set[2].fd, cmd_buf, 3);
-	    printf("\033[1;32;40m\tSend to sensor 872-%d: %s\033[0m\n", device_id, cmd_buf);
+	    printf("\033[0;34;40m\tSend to sensor 872-%d: %s\033[0m\n", device_id, cmd_buf);
 	}
     }
 }
@@ -614,11 +614,9 @@ void GTWY_Work() {
                 continue;
             // ok now
             if (fdLookup[sel_fd].type == SERVER)
-        //        thpool_add_work(myGateway.thpool, Server_Handler, (void *)&fdLookup[sel_fd]);
-		Server_Handler(&fdLookup[sel_fd]);
+                thpool_add_work(myGateway.thpool, Server_Handler, (void *)&fdLookup[sel_fd]);
             else // sensor
-       //         thpool_add_work(myGateway.thpool, Sensor_Handler, (void *)&fdLookup[sel_fd]);
-		Sensor_Handler(&fdLookup[sel_fd]);
+                thpool_add_work(myGateway.thpool, Sensor_Handler, (void *)&fdLookup[sel_fd]);
         }
     }
 }
